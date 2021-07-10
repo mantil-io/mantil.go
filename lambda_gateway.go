@@ -50,7 +50,8 @@ func (h *lambdaApiGatewayHandler) Invoke(ctx context.Context, payload []byte) ([
 	if err != nil {
 		method = ""
 	}
-	rsp := h.caller.call(ctx, method, payload)
+	callerCtx := h.initLog(ctx, nil)
+	rsp := h.caller.call(callerCtx, method, payload)
 	return rsp.Raw()
 }
 
@@ -83,7 +84,7 @@ func jsonKeyExists(data []byte, key string) bool {
 }
 
 func (h *lambdaApiGatewayHandler) callback(parent context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	ctx := h.initLog(parent, req)
+	ctx := h.initLog(parent, &req)
 
 	path := req.PathParameters["path"]
 	rsp := h.caller.call(ctx, path, []byte(req.Body))
@@ -106,7 +107,7 @@ func (h *lambdaApiGatewayHandler) response(rsp *callResponse) events.APIGatewayP
 	return gwRsp
 }
 
-func (h *lambdaApiGatewayHandler) initLog(ctx context.Context, req events.APIGatewayProxyRequest) context.Context {
+func (h *lambdaApiGatewayHandler) initLog(ctx context.Context, req *events.APIGatewayProxyRequest) context.Context {
 	h.requestNo++
 	log.SetFlags(log.Lshortfile)
 	cv := Context{
@@ -115,7 +116,7 @@ func (h *lambdaApiGatewayHandler) initLog(ctx context.Context, req events.APIGat
 	if lc, ok := lambdacontext.FromContext(ctx); ok {
 		log.SetPrefix(lc.AwsRequestID[:8] + " ")
 		cv.Lambda = lc
-		cv.APIGatewayRequest = &req
+		cv.APIGatewayRequest = req
 	}
 	return context.WithValue(ctx, contextKey, &cv)
 }
