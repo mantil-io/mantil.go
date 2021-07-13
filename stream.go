@@ -294,6 +294,9 @@ func LambdaEnv(ctx context.Context, key string) (string, bool) {
 	return "", false
 }
 
+// LambdaStreamHandler creates nats consumer in lambda function
+// Calls handler for each undelivered message.
+// Finishes with draining nats consumer or when ctx expires.
 func LambdaStreamHandler(cb func(*Msg) error) {
 	handler := func(ctx context.Context, conf ConsumerConfig) error {
 
