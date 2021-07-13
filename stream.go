@@ -1,10 +1,7 @@
 package mantil
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,10 +13,23 @@ import (
 	golambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
-	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/nats-io/jsm.go"
 	"github.com/nats-io/jsm.go/api"
 	"github.com/nats-io/nats.go"
+)
+
+const (
+	// from nats.go: https://github.com/nats-io/nats.go/blob/274aa57115bb5ba10c3db65a336334d5fdf90b7e/nats.go#L3076
+	statusHdr    = "Status"
+	descrHdr     = "Description"
+	noResponders = "503"
+	noMessages   = "404"
+	controlMsg   = "100"
+	// end from nats.go
+	defaultBatchSize            = 1024
+	envNatsURL                  = "NATS_URL"
+	streamHandlerCleanup        = 10 // in ms
+	natsLambdaSubscriberChanLen = 16
 )
 
 type StreamConfig struct {
@@ -87,8 +97,12 @@ func (s *Stream) natsURL() string {
 	if s.conf.NatsURL != "" {
 		return s.conf.NatsURL
 	}
+	return natsURL()
+}
+
+func natsURL() string {
 	// try in environment
-	if val, ok := os.LookupEnv(envNatsServers); ok {
+	if val, ok := os.LookupEnv(envNatsURL); ok {
 		return val
 	}
 	// // try in lambda environment
@@ -272,19 +286,6 @@ func (c *Consumer) Consume(ctx context.Context, cb func(*Msg) error) error {
 	}
 }
 
-const (
-	// from nats.go: https://github.com/nats-io/nats.go/blob/274aa57115bb5ba10c3db65a336334d5fdf90b7e/nats.go#L3076
-	statusHdr    = "Status"
-	descrHdr     = "Description"
-	noResponders = "503"
-	noMessages   = "404"
-	controlMsg   = "100"
-	// end from nats.go
-	defaultBatchSize     = 1024
-	envNatsServers       = "NATS_SERVERS"
-	streamHandlerCleanup = 10 // in ms
-)
-
 func LambdaEnv(ctx context.Context, key string) (string, bool) {
 	if lc, ok := lambdacontext.FromContext(ctx); ok {
 		val, ok := lc.ClientContext.Env[key]
@@ -336,27 +337,27 @@ func (m *Msg) from(nm *nats.Msg) {
 	m.Data = nm.Data
 }
 
-// ConsumerWatchLoop waits for new message in the consumer.
+// NatsLambdaConsumer waits for an unprocessed message in the consumer.
 // Calls lambda function handler to process messages from the consumer.
-// Starts waiting for the new message again.
-// Loops until ctx is canceled.
-func ConsumerWatchLoop(ctx context.Context, conf ConsumerConfig) error {
-	l := listener{conf: conf}
-	if err := l.connect(ctx); err != nil {
-		return err
+// Run method loops like that until ctx is canceled.
+func NewNatsLambdaConsumer(conf ConsumerConfig) (*NatsLambdaConsumer, error) {
+	l := NatsLambdaConsumer{conf: conf}
+	if err := l.connect(); err != nil {
+		return nil, err
 	}
-	return l.loop(ctx)
+	return &l, nil
 }
 
-type listener struct {
+type NatsLambdaConsumer struct {
 	conf    ConsumerConfig
 	st      *Stream
 	cs      *Consumer
 	client  *lambda.Client
+	caller  *LambdaInvoker
 	payload []byte
 }
 
-func (l *listener) connect(ctx context.Context) error {
+func (l *NatsLambdaConsumer) connect() error {
 	st, err := ConnectStream(l.conf.Stream)
 	if err != nil {
 		return err
@@ -370,18 +371,19 @@ func (l *listener) connect(ctx context.Context) error {
 	return l.setup()
 }
 
-func (l *listener) setup() error {
-	iid, cfg, err := instanceMetadata()
+func (l *NatsLambdaConsumer) setup() error {
+	lc, err := NewLambdaInvoker(l.conf.Handler)
 	if err != nil {
 		return err
 	}
+	l.caller = lc
 
-	l.client = lambda.New(lambda.Options{
-		Region:      cfg.Region,
-		Credentials: cfg.Credentials,
-	})
-
+	iid, _, err := instanceMetadata()
+	if err != nil {
+		return err
+	}
 	l.setNatsURL(iid.PrivateIP)
+
 	buf, err := json.Marshal(l.conf)
 	if err != nil {
 		return err
@@ -390,7 +392,7 @@ func (l *listener) setup() error {
 	return nil
 }
 
-func (l *listener) setNatsURL(privateIP string) {
+func (l *NatsLambdaConsumer) setNatsURL(privateIP string) {
 	url := strings.Join(l.st.Servers(), ",")
 	if privateIP != "" {
 		url = strings.Replace(url, "127.0.0.1", privateIP, -1)
@@ -398,7 +400,7 @@ func (l *listener) setNatsURL(privateIP string) {
 	l.conf.Stream.NatsURL = url
 }
 
-func (l *listener) loop(ctx context.Context) error {
+func (l *NatsLambdaConsumer) Run(ctx context.Context) error {
 	lastSeq := uint64(0)
 	for {
 		seq, err := l.cs.Wait(ctx)
@@ -412,52 +414,100 @@ func (l *listener) loop(ctx context.Context) error {
 			// TODO rethink how to stop infinite loop, maybe few retries are OK
 			return fmt.Errorf("handler called but nothing changed sequence is still %d", seq)
 		}
-		if err := l.callHandler(); err != nil {
+		if _, err := l.caller.Call(l.payload); err != nil {
 			return err
 		}
 		lastSeq = seq
 	}
 }
 
-func (l *listener) callHandler() error {
-	input := &lambda.InvokeInput{
-		FunctionName: &l.conf.Handler,
-		LogType:      types.LogTypeTail,
-		Payload:      l.payload,
-	}
-	output, err := l.client.Invoke(context.Background(), input)
+// NewNatsLambdaSubscriber creates nats subscriber which calls lambda function for each message in the subject.
+func NewNatsLambdaSubscriber(subject, functionName string) (*NatsLambdaSubscriber, error) {
+	lc, err := NewLambdaInvoker(functionName)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	if !(output.StatusCode >= http.StatusOK && output.StatusCode < http.StatusMultipleChoices) {
-		if output.FunctionError != nil {
-			return fmt.Errorf("failed with error: %s, status code: %d", *output.FunctionError, output.StatusCode)
-		}
-		return fmt.Errorf("failed with status code: %d", output.StatusCode)
+	s := &NatsLambdaSubscriber{
+		subject: subject,
+		handler: lc.Call,
 	}
-	if err := l.showLog(output.LogResult); err != nil {
-		return fmt.Errorf("showLog failed %w", err)
+	if err := s.connect(); err != nil {
+		return nil, err
 	}
-
-	//fmt.Printf("output payload: %s, log: %s, version: %s\n", output.Payload, outputLog, *output.ExecutedVersion)
-	return nil
+	return s, nil
 }
 
-func (l *listener) showLog(logResult *string) error {
-	if logResult == nil {
+type NatsLambdaSubscriber struct {
+	subject string
+	nc      *nats.Conn
+	sub     *nats.Subscription
+	ch      chan *nats.Msg
+	handler func([]byte) ([]byte, error)
+}
+
+func (w *NatsLambdaSubscriber) connect() error {
+	if w.nc != nil {
 		return nil
 	}
-	dec, err := base64.StdEncoding.DecodeString(*logResult)
+	if defaultNatsConn != nil {
+		w.nc = defaultNatsConn
+	}
+	url := natsURL()
+	nc, err := nats.Connect(url)
 	if err != nil {
+		return fmt.Errorf("connect failed %w", err)
+	}
+	w.nc = nc
+	w.nc.SetReconnectHandler(func(*nats.Conn) {
+		log.Printf("nats reconnect")
+	})
+	return nil
+}
+
+func (s *NatsLambdaSubscriber) Run(ctx context.Context) error {
+	if err := s.subscribe(); err != nil {
 		return err
 	}
+	for {
+		select {
+		case <-ctx.Done():
+			s.sub.Unsubscribe()
+			close(s.ch)
+			for nm := range s.ch {
+				if err := s.process(nm); err != nil {
+					return err
+				}
+			}
+			return nil
+		case nm, ok := <-s.ch:
+			if !ok {
+				return nil
+			}
+			if err := s.process(nm); err != nil {
+				s.sub.Unsubscribe()
+				return err
+			}
+		}
+	}
+}
 
-	scanner := bufio.NewScanner(bytes.NewBuffer(dec))
-	for scanner.Scan() {
-		log.Printf("%s >> %s", l.conf.Handler, scanner.Text())
+func (s *NatsLambdaSubscriber) process(nm *nats.Msg) error {
+	rspPayload, err := s.handler(nm.Data)
+	if err != nil {
+		return nil
+	}
+	if nm.Reply != "" {
+		return nm.Respond(rspPayload)
 	}
 	return nil
 }
 
-// reqex wich parses report line: https://regex101.com/r/fhriQd/1
+func (s *NatsLambdaSubscriber) subscribe() error {
+	s.ch = make(chan *nats.Msg, natsLambdaSubscriberChanLen)
+	sub, err := s.nc.ChanSubscribe(s.subject, s.ch)
+	if err != nil {
+		return err
+	}
+	s.sub = sub
+	return nil
+}

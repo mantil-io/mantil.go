@@ -16,19 +16,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
 
-type LambdaCaller struct {
+type LambdaInvoker struct {
 	functionName string
 	client       *lambda.Client
 }
 
-func NewLambdaCaller(functionName string) (*LambdaCaller, error) {
-	l := &LambdaCaller{
+// NewLambdaCaller builds helper for invoking lambda functions.
+// Currently should be used on ec2 instace because it depends on instance metadata.
+func NewLambdaInvoker(functionName string) (*LambdaInvoker, error) {
+	l := &LambdaInvoker{
 		functionName: functionName,
 	}
 	return l, l.setup()
 }
 
-func (l *LambdaCaller) setup() error {
+func (l *LambdaInvoker) setup() error {
 	_, cfg, err := instanceMetadata()
 	if err != nil {
 		return err
@@ -41,7 +43,7 @@ func (l *LambdaCaller) setup() error {
 	return nil
 }
 
-func (l *LambdaCaller) Call(payload []byte) ([]byte, error) {
+func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	input := &lambda.InvokeInput{
 		FunctionName: &l.functionName,
 		LogType:      types.LogTypeTail,
@@ -66,7 +68,7 @@ func (l *LambdaCaller) Call(payload []byte) ([]byte, error) {
 	return output.Payload, nil
 }
 
-func (l *LambdaCaller) showLog(logResult *string) error {
+func (l *LambdaInvoker) showLog(logResult *string) error {
 	if logResult == nil {
 		return nil
 	}
