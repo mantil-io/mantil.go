@@ -211,11 +211,12 @@ func (c *Consumer) Wait(parent context.Context) (uint64, error) {
 // Consume all undelivered messages from the stream consumer
 // call callback cb for each message
 func (c *Consumer) Consume(ctx context.Context, cb func(*Msg) error) error {
+	nc := c.stream.nc
 	// subscribe for incomming messages
 	batchSize := defaultBatchSize
 	inbox := nats.NewInbox()
 	inboxChan := make(chan *nats.Msg, batchSize)
-	sub, err := c.stream.nc.ChanSubscribe(inbox, inboxChan)
+	sub, err := nc.ChanSubscribe(inbox, inboxChan)
 	if err != nil {
 		return err
 	}
@@ -231,6 +232,7 @@ func (c *Consumer) Consume(ctx context.Context, cb func(*Msg) error) error {
 			}
 		}
 	}
+	defer drainInbox()
 
 	for {
 		// request batch to be deliverd to the inbox
@@ -249,7 +251,6 @@ func (c *Consumer) Consume(ctx context.Context, cb func(*Msg) error) error {
 			}
 			select {
 			case <-ctx.Done():
-				drainInbox()
 				return nil
 			case nm := <-inboxChan:
 				if len(nm.Data) == 0 && len(nm.Header) > 0 && nm.Header.Get(statusHdr) != "" {
@@ -263,18 +264,22 @@ func (c *Consumer) Consume(ctx context.Context, cb func(*Msg) error) error {
 					if nm.Header.Get(statusHdr) == controlMsg {
 						// skip control message
 						// ref: https://natsio.slack.com/archives/CM3T6T7JQ/p1624622913159000?thread_ts=1624539893.142200&cid=CM3T6T7JQ
-						nm.Ack()
+						_ = nm.Ack()
 						continue
 					}
 					// treat all other status messages (hopefully none) as errors
 					return fmt.Errorf("consumer NextMsgRequest failed; status: %s, description: %s",
 						nm.Header.Get(statusHdr), nm.Header.Get(descrHdr))
 				}
+
 				var msg Msg
 				msg.from(nm)
 				if err := cb(&msg); err != nil {
 					_ = nm.Nak()
-					drainInbox()
+					return err
+				}
+				if err := msg.publishReplies(nc); err != nil {
+					_ = nm.Nak()
 					return err
 				}
 				if err := nm.Ack(); err != nil {
@@ -329,6 +334,24 @@ type Msg struct {
 	Header   http.Header
 	Data     []byte
 	Sequence uint64
+	replies  []ReplyMsg
+}
+
+type ReplyMsg struct {
+	Subject string
+	Header  http.Header
+	Data    []byte
+}
+
+func (rm *ReplyMsg) toNats() *nats.Msg {
+	nrm := nats.Msg{
+		Subject: rm.Subject,
+		Data:    rm.Data,
+	}
+	if rm.Header != nil {
+		nrm.Header = nats.Header(rm.Header)
+	}
+	return &nrm
 }
 
 func (m *Msg) from(nm *nats.Msg) {
@@ -338,6 +361,22 @@ func (m *Msg) from(nm *nats.Msg) {
 	m.Subject = nm.Subject
 	m.Header = http.Header(nm.Header)
 	m.Data = nm.Data
+}
+
+func (m *Msg) Reply(rm ReplyMsg) {
+	m.replies = append(m.replies, rm)
+}
+
+func (m *Msg) publishReplies(nc *nats.Conn) error {
+	if len(m.replies) == 0 {
+		return nil
+	}
+	for _, rm := range m.replies {
+		if err := nc.PublishMsg(rm.toNats()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NatsLambdaConsumer waits for an unprocessed message in the consumer.
