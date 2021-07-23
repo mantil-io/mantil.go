@@ -414,7 +414,7 @@ func (l *NatsLambdaConsumer) connect() error {
 }
 
 func (l *NatsLambdaConsumer) setup() error {
-	lc, err := NewLambdaInvoker(l.conf.Handler)
+	lc, err := NewLambdaInvoker(l.conf.Handler, "")
 	if err != nil {
 		return err
 	}
@@ -465,7 +465,7 @@ func (l *NatsLambdaConsumer) Run(ctx context.Context) error {
 
 // NewNatsLambdaSubscriber creates nats subscriber which calls lambda function for each message in the subject.
 func NewNatsLambdaSubscriber(subject, functionName string) (*NatsLambdaSubscriber, error) {
-	lc, err := NewLambdaInvoker(functionName)
+	lc, err := NewLambdaInvoker(functionName, "")
 	if err != nil {
 		return nil, err
 	}

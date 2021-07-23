@@ -10,42 +10,87 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 type LambdaInvoker struct {
-	functionName string
-	client       *lambda.Client
+	function string
+	role     string
+	client   *lambda.Client
 }
 
 // NewLambdaCaller builds helper for invoking lambda functions.
-// Currently should be used on ec2 instace because it depends on instance metadata.
-func NewLambdaInvoker(functionName string) (*LambdaInvoker, error) {
+//
+// function can be name of the function or full arn
+// name - my-function (name-only), my-function:v1 (with alias).
+// arn:aws:lambda:us-west-2:123456789012:function:my-function.
+//
+// role is iam role to assume
+// empty string if not needed; if the function is in the same aws account
+// and caller has iam rights to invoke
+// otherwise provide arn of the role
+//
+// Example of full format:
+// NewLambdaInvoker(
+//    "arn:aws:lambda:eu-central-1:123456789012:function:dummy",
+//    "arn:aws:iam::123456789012:role/cross-account-execute-lambda",
+// )
+func NewLambdaInvoker(function, role string) (*LambdaInvoker, error) {
 	l := &LambdaInvoker{
-		functionName: functionName,
+		function: function,
+		role:     role,
 	}
 	return l, l.setup()
 }
 
 func (l *LambdaInvoker) setup() error {
-	_, cfg, err := instanceMetadata()
+	cfg, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
 		return err
 	}
+	cred := cfg.Credentials
+
+	if l.role != "" {
+		cred = stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg), l.role)
+	}
 
 	l.client = lambda.New(lambda.Options{
-		Region:      cfg.Region,
-		Credentials: cfg.Credentials,
+		Region:      l.region(cfg),
+		Credentials: cred,
 	})
 	return nil
 }
 
+func (l *LambdaInvoker) region(cfg aws.Config) string {
+	// from lambda function arn
+	arn, err := arn.Parse(l.function)
+	if err == nil && arn.Region != "" {
+		return arn.Region
+	}
+	// from config
+	if cfg.Region != "" {
+		return cfg.Region
+	}
+	// from instance metadata
+	imdsc := imds.New(imds.Options{}) // Amazon EC2 Instance Metadata Service Client
+	ctx := context.Background()
+	iid, err := imdsc.GetInstanceIdentityDocument(ctx, nil)
+	if err == nil {
+		return iid.Region
+	}
+	// give up
+	return ""
+}
+
 func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	input := &lambda.InvokeInput{
-		FunctionName: &l.functionName,
+		FunctionName: &l.function,
 		LogType:      types.LogTypeTail,
 		Payload:      payload,
 	}
@@ -79,7 +124,7 @@ func (l *LambdaInvoker) showLog(logResult *string) error {
 
 	scanner := bufio.NewScanner(bytes.NewBuffer(dec))
 	for scanner.Scan() {
-		log.Printf("%s >> %s", l.functionName, scanner.Text())
+		log.Printf("%s >> %s", l.function, scanner.Text())
 	}
 	return nil
 }
