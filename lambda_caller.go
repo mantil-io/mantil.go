@@ -113,6 +113,25 @@ func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	return output.Payload, nil
 }
 
+func (l *LambdaInvoker) CallAsync(payload []byte) error {
+	input := &lambda.InvokeInput{
+		FunctionName:   &l.function,
+		LogType:        types.LogTypeTail,
+		Payload:        payload,
+		InvocationType: types.InvocationTypeEvent,
+	}
+	output, err := l.client.Invoke(context.Background(), input)
+	if err != nil {
+		return err
+	}
+
+	if !(output.StatusCode >= http.StatusOK && output.StatusCode < http.StatusMultipleChoices) {
+		return fmt.Errorf("failed with status code: %d", output.StatusCode)
+	}
+
+	return nil
+}
+
 func (l *LambdaInvoker) showLog(logResult *string) error {
 	if logResult == nil {
 		return nil
