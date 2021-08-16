@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/atoz-technology/mantil.go/pkg/logs"
 )
 
 func newCaller(i interface{}) *caller {
@@ -82,6 +84,11 @@ func callerErr(err error, statusCode int) *callResponse {
 
 // Inspiration: https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go
 func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte) *callResponse {
+	close, err := logs.CaptureLambda(ctx)
+	if err != nil {
+		return callerErr(err, http.StatusInternalServerError)
+	}
+	defer close()
 	methodName = strings.Replace(strings.ToLower(methodName), "-", "", -1)
 	if methodName == "" {
 		for _, name := range []string{"Invoke", "Root"} {

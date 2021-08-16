@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/atoz-technology/mantil.go/pkg/lambdactx"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
@@ -110,7 +111,7 @@ func (h *lambdaApiGatewayHandler) response(rsp *callResponse) events.APIGatewayP
 func (h *lambdaApiGatewayHandler) initLog(ctx context.Context, req *events.APIGatewayProxyRequest) context.Context {
 	h.requestNo++
 	log.SetFlags(log.Lshortfile)
-	cv := Context{
+	cv := lambdactx.Context{
 		RequestNo: h.requestNo,
 	}
 	if lc, ok := lambdacontext.FromContext(ctx); ok {
@@ -118,26 +119,5 @@ func (h *lambdaApiGatewayHandler) initLog(ctx context.Context, req *events.APIGa
 		cv.Lambda = lc
 		cv.APIGatewayRequest = req
 	}
-	return context.WithValue(ctx, contextKey, &cv)
-}
-
-type Context struct {
-	RequestNo         int
-	APIGatewayRequest *events.APIGatewayProxyRequest
-	Lambda            *lambdacontext.LambdaContext
-}
-
-// An unexported type to be used as the key for types in this package.
-// This prevents collisions with keys defined in other packages.
-type key struct{}
-
-// The key for a LambdaContext in Contexts.
-// Users of this package must use lambdacontext.NewContext and lambdacontext.FromContext
-// instead of using this key directly.
-var contextKey = &key{}
-
-// FromContext returns the LambdaContext value stored in ctx, if any.
-func FromContext(ctx context.Context) (*Context, bool) {
-	lc, ok := ctx.Value(contextKey).(*Context)
-	return lc, ok
+	return context.WithValue(ctx, lambdactx.ContextKey, &cv)
 }
