@@ -24,13 +24,12 @@ type Listener struct {
 }
 
 func (l *Listener) Listen(ctx context.Context) (chan *nats.Msg, error) {
-	// create inbox and subscribe
-	nmsgs := make(chan *nats.Msg, 1)
+	// buffer channel to prevent slow consumer errors
+	nmsgs := make(chan *nats.Msg, 1024)
 	sub, err := l.nc.ChanSubscribe(l.subject, nmsgs)
 	if err != nil {
 		return nil, fmt.Errorf("subscribe error %w", err)
 	}
-	// listen on messages in inbox
 	out := make(chan *nats.Msg)
 	go func() {
 		defer close(out)
