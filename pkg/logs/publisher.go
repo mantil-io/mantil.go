@@ -10,10 +10,6 @@ import (
 	"github.com/atoz-technology/mantil.go/pkg/nats"
 )
 
-const (
-	inboxHeaderKey = "mantil-logs-inbox"
-)
-
 func CaptureLambda(ctx context.Context) (func(), error) {
 	inbox, ok := LogInboxFromLambdaCtx(ctx)
 	if !ok {
@@ -29,12 +25,12 @@ func LogInboxFromLambdaCtx(ctx context.Context) (string, bool) {
 	}
 	agr := lctx.APIGatewayRequest
 	if agr != nil {
-		inbox := agr.Headers[inboxHeaderKey]
+		inbox := agr.Headers[InboxHeaderKey]
 		return inbox, inbox != ""
 	}
 	lambda := lctx.Lambda
 	if lambda != nil {
-		inbox := lambda.ClientContext.Custom[inboxHeaderKey]
+		inbox := lambda.ClientContext.Custom[InboxHeaderKey]
 		return inbox, inbox != ""
 	}
 	return "", false
