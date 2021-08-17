@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"sync"
 
 	mnats "github.com/atoz-technology/mantil.go/pkg/nats"
 	"github.com/nats-io/nats.go"
@@ -23,21 +25,29 @@ func (l *Listener) Subject() string {
 	return l.inbox
 }
 
-func (l *Listener) Listen(ctx context.Context, handler func(string) error) error {
+func (l *Listener) Listen(ctx context.Context, handler func(string) error) (func(), error) {
 	nl, err := mnats.NewListener(l.inbox)
 	if err != nil {
-		return fmt.Errorf("could not initialize nats listener - %v", err)
+		return nil, fmt.Errorf("could not initialize nats listener - %v", err)
 	}
 	ch, err := nl.Listen(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for nm := range ch {
-		lm := &LogMessage{}
-		if err := json.Unmarshal(nm.Data, lm); err != nil {
-			return err
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		for nm := range ch {
+			lm := &LogMessage{}
+			if err := json.Unmarshal(nm.Data, lm); err != nil {
+				log.Println(err)
+				continue
+			}
+			handler(lm.Message)
 		}
-		handler(lm.Message)
-	}
-	return nil
+		wg.Done()
+	}()
+	return func() {
+		wg.Wait()
+	}, nil
 }
