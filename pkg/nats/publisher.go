@@ -3,24 +3,31 @@ package nats
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/nats-io/nats.go"
 )
 
 func NewPublisher(subject string) (*Publisher, error) {
-	nc, err := nats.Connect(defaultNatsURL, publicUserAuth())
+	var wg sync.WaitGroup
+	wg.Add(1)
+	nc, err := nats.Connect(defaultNatsURL, publicUserAuth(), nats.ClosedHandler(func(_ *nats.Conn) {
+		wg.Done()
+	}))
 	if err != nil {
 		return nil, fmt.Errorf("connect error %w", err)
 	}
 	return &Publisher{
 		nc:      nc,
 		subject: subject,
+		drainWg: &wg,
 	}, nil
 }
 
 type Publisher struct {
 	subject string
 	nc      *nats.Conn
+	drainWg *sync.WaitGroup
 }
 
 func (p *Publisher) Pub(i interface{}) error {
@@ -32,5 +39,12 @@ func (p *Publisher) Pub(i interface{}) error {
 }
 
 func (p *Publisher) Close() error {
-	return p.nc.Publish(p.subject, nil)
+	if err := p.nc.Publish(p.subject, nil); err != nil {
+		return err
+	}
+	if err := p.nc.Drain(); err != nil {
+		return err
+	}
+	p.drainWg.Wait()
+	return nil
 }
