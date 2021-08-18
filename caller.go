@@ -107,7 +107,6 @@ func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte)
 		if methodName != strings.ToLower(method.Name) {
 			continue
 		}
-		log.Printf("calling method %s", method.Name)
 		return c.callMethod(method, ctx, reqPayload)
 	}
 	return callerErr(
