@@ -3,6 +3,7 @@ package mantil
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"github.com/atoz-technology/mantil.go/pkg/lambdactx"
 	"github.com/aws/aws-lambda-go/events"
@@ -109,6 +110,7 @@ func (h *lambdaApiGatewayHandler) response(rsp *callResponse) events.APIGatewayP
 
 func (h *lambdaApiGatewayHandler) initLog(ctx context.Context, req *events.APIGatewayProxyRequest) context.Context {
 	h.requestNo++
+	log.SetFlags(0)
 	cv := lambdactx.Context{
 		RequestNo: h.requestNo,
 	}
