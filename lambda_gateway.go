@@ -3,7 +3,6 @@ package mantil
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/atoz-technology/mantil.go/pkg/lambdactx"
 	"github.com/aws/aws-lambda-go/events"
@@ -110,12 +109,10 @@ func (h *lambdaApiGatewayHandler) response(rsp *callResponse) events.APIGatewayP
 
 func (h *lambdaApiGatewayHandler) initLog(ctx context.Context, req *events.APIGatewayProxyRequest) context.Context {
 	h.requestNo++
-	log.SetFlags(log.Lshortfile)
 	cv := lambdactx.Context{
 		RequestNo: h.requestNo,
 	}
 	if lc, ok := lambdacontext.FromContext(ctx); ok {
-		log.SetPrefix(lc.AwsRequestID[:8] + " ")
 		cv.Lambda = lc
 		cv.APIGatewayRequest = req
 	}
