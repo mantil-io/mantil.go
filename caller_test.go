@@ -39,6 +39,15 @@ func (h *Hello) ValueInReqAndRsp(ctx context.Context, req WorldRequest) (WorldRe
 	return rsp, nil
 }
 
+func (h *Hello) ArrayResponse(ctx context.Context, req WorldRequest) ([]WorldResponse, error) {
+	var rsps []WorldResponse
+	for i := 0; i < 10; i++ {
+		rsp := WorldResponse{Response: fmt.Sprintf("Hello, %d", i)}
+		rsps = append(rsps, rsp)
+	}
+	return rsps, nil
+}
+
 func (h *Hello) NoCtx(req WorldRequest) (*WorldResponse, error) {
 	rsp := WorldResponse{Response: "Hello, " + req.Name}
 	return &rsp, nil
@@ -122,6 +131,12 @@ func Test(t *testing.T) {
 			rsp:        "",
 			statusCode: 500,
 			error:      "PANIC runtime error: invalid memory address or nil pointer dereference",
+		},
+		{
+			method:     "arrayresponse",
+			req:        "",
+			rsp:        "[{\"Response\":\"Hello, 0\"},{\"Response\":\"Hello, 1\"},{\"Response\":\"Hello, 2\"},{\"Response\":\"Hello, 3\"},{\"Response\":\"Hello, 4\"},{\"Response\":\"Hello, 5\"},{\"Response\":\"Hello, 6\"},{\"Response\":\"Hello, 7\"},{\"Response\":\"Hello, 8\"},{\"Response\":\"Hello, 9\"}]",
+			statusCode: 200,
 		},
 	}
 

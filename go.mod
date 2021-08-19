@@ -15,4 +15,5 @@ require (
 	github.com/nats-io/jsm.go v0.0.24 // indirect
 	github.com/nats-io/nats.go v1.11.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
+	github.com/stretchr/testify v1.7.0 // indirect
 )
