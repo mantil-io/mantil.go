@@ -53,7 +53,11 @@ func (h *lambdaApiGatewayHandler) Invoke(ctx context.Context, payload []byte) ([
 	}
 	callerCtx := h.initLog(ctx, nil)
 	rsp := h.caller.call(callerCtx, method, payload)
-	return rsp.Raw()
+	rspPayload, err := rsp.Raw()
+	if err != nil {
+		log.Printf("invoke of method %s failed with error: %v", method, err)
+	}
+	return rspPayload, err
 }
 
 func hasAPIGatewayKeys(data []byte) bool {
