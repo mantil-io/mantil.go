@@ -91,13 +91,13 @@ func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte)
 	defer close()
 	methodName = strings.Replace(strings.ToLower(methodName), "-", "", -1)
 	if methodName == "" {
-		for _, name := range []string{"Invoke", "Root"} {
+		for _, name := range []string{"Invoke", "Root", "Default"} {
 			if method, ok := c.typ.MethodByName(name); ok {
 				return c.callMethod(method, ctx, reqPayload)
 			}
 		}
 		return callerErr(
-			fmt.Errorf("can't find Invoke method in %s", c.typ.Name()),
+			fmt.Errorf("can't find Invoke/Root/Default method in %s", c.typ.Name()),
 			http.StatusNotImplemented,
 		)
 	}
