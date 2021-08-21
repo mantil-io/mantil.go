@@ -2,7 +2,11 @@ package mantil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -182,4 +186,51 @@ func Test(t *testing.T) {
 		}
 	})
 
+}
+
+// Example of how to call method with response of the array of some structure.
+//
+// Razmisljam kako modelirati api kada ima potrebu vratiti
+// vise odgovora na neki streaming kanal (websocket prema klijentima).
+// A da tim kanalom ide poruka po pourka. Obicno postoji neki limit na velicinu poruke,
+// pa ako saljem jednu po jednu necu naletiti na njega.
+func TestCallMethodWithArrayResponse(t *testing.T) {
+	api := &Hello{}
+	i := interface{}(api)
+	value := reflect.ValueOf(i)
+	typ := reflect.TypeOf(i)
+
+	var response []reflect.Value
+	methodName := "arrayresponse"
+	for i := 0; i < typ.NumMethod(); i++ {
+		method := typ.Method(i)
+		if methodName != strings.ToLower(method.Name) {
+			continue
+		}
+		var args []reflect.Value
+		args = append(args, value)
+		args = append(args, reflect.ValueOf(context.TODO()))
+		args = append(args, reflect.ValueOf((WorldRequest{})))
+		response = method.Func.Call(args)
+	}
+
+	v := response[0].Interface()
+	if reflect.TypeOf(v).Kind() == reflect.Slice {
+		//fmt.Printf("is slice\n")
+		switch reflect.TypeOf(v).Kind() {
+		case reflect.Slice:
+			s := reflect.ValueOf(v)
+
+			for i := 0; i < s.Len(); i++ {
+				e := s.Index(i)
+				buf, err := json.Marshal(e.Interface())
+				if err != nil {
+					log.Fatal(err)
+				}
+				expected := fmt.Sprintf(`{"Response":"Hello, %d"}`, i)
+				require.Equal(t, expected, string(buf))
+				t.Logf("%s\n", buf)
+			}
+		}
+	}
 }
