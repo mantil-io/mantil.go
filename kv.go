@@ -1,17 +1,11 @@
 package mantil
 
-// TODO
-// * GetAll nece vratiti sve u opceniom slucaju, mora iterirati, napravi tu iteraciju interno
-//     ili vrati paging pa on da mora ponovo zvati, ili vrati has more
-//     isto je zapravo i za GetMany nisam siguran ima li ih jos
-// * ili da ne pokrivam te uvjete neka uzme raw connection ako mu nesto tako treba
-// bolji interface za GetAll
-
 import (
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -185,20 +179,28 @@ const (
 	FindAll
 )
 
-func (k *KV) Find(items interface{}, op FindOperator, args ...string) error {
+func (k *KV) Find(items interface{}, op FindOperator, args ...string) (*FindIterator, error) {
+	keyCondition, expressionAttributes, err := k.findConditions(op, args...)
+	if err != nil {
+		return nil, err
+	}
+	return k.find(items, 0, keyCondition, expressionAttributes)
+}
+
+func (k *KV) findConditions(op FindOperator, args ...string) (string, map[string]types.AttributeValue, error) {
 	// check for required number of args
 	switch op {
 	case FindBetween:
 		if len(args) != 2 {
-			return fmt.Errorf("between operations requires two arguments")
+			return "", nil, fmt.Errorf("between operations requires two arguments")
 		}
 	case FindAll:
 		if len(args) != 0 {
-			return fmt.Errorf("FindAll operation doesn't have arguments, got %d", len(args))
+			return "", nil, fmt.Errorf("FindAll operation doesn't have arguments, got %d", len(args))
 		}
 	default:
 		if len(args) != 1 {
-			return fmt.Errorf("operation requires one argument, got %d", len(args))
+			return "", nil, fmt.Errorf("operation requires one argument, got %d", len(args))
 		}
 	}
 
@@ -230,26 +232,96 @@ func (k *KV) Find(items interface{}, op FindOperator, args ...string) error {
 		keyCondition = fmt.Sprintf("%s=:PK and %s < :sk", PK, SK)
 		expressionAttributes[":sk"] = &types.AttributeValueMemberS{Value: args[0]}
 	default:
-		return fmt.Errorf("unknown find operation")
+		return "", nil, fmt.Errorf("unknown find operation")
 	}
 
-	return k.getMany(items, keyCondition, expressionAttributes)
+	return keyCondition, expressionAttributes, nil
 }
 
-func (k *KV) FindAll(items interface{}) error {
+func (k *KV) FindAll(items interface{}) (*FindIterator, error) {
 	return k.Find(items, FindAll)
 }
 
-func (k *KV) getMany(items interface{}, keyCondition string, expressionAttributes map[string]types.AttributeValue) error {
-	out, err := k.svc.Query(context.TODO(), &dynamodb.QueryInput{
-		TableName:                 aws.String(k.tableName),
-		KeyConditionExpression:    aws.String(keyCondition),
-		ExpressionAttributeValues: expressionAttributes,
-	})
+func (k *KV) findAllInPages(items interface{}, limit int) (*FindIterator, error) {
+	keyCondition, expressionAttributes, _ := k.findConditions(FindAll)
+	return k.find(items, limit, keyCondition, expressionAttributes)
+}
+
+func (k *KV) unmarshal(items interface{}, out *dynamodb.QueryOutput) error {
+	if len(out.Items) == 0 {
+		// if there are no results set len of items slice to 0
+		// if result exsits len will be handled in unmarshal
+		t := reflect.TypeOf(items)
+		v := reflect.ValueOf(items)
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+			v = v.Elem()
+			if t.Kind() == reflect.Slice {
+				v.Set(reflect.MakeSlice(v.Type(), 0, 0))
+				return nil
+			}
+		}
+	}
+	return attributevalue.UnmarshalListOfMaps(out.Items, items)
+}
+
+type FindIterator struct {
+	k           *KV
+	queryInput  *dynamodb.QueryInput
+	queryOutput *dynamodb.QueryOutput
+}
+
+func (i *FindIterator) HasMore() bool {
+	if i.queryOutput == nil {
+		return false
+	}
+	return i.queryOutput.LastEvaluatedKey != nil && len(i.queryOutput.LastEvaluatedKey) > 0
+}
+
+func (i FindIterator) Count() int {
+	if i.queryOutput == nil {
+		return 0
+	}
+	return int(i.queryOutput.Count)
+}
+
+func (i *FindIterator) Next(items interface{}) error {
+	if !i.HasMore() {
+		return nil
+	}
+	i.queryInput.ExclusiveStartKey = i.queryOutput.LastEvaluatedKey
+	out, err := i.k.svc.Query(context.TODO(), i.queryInput)
 	if err != nil {
 		return err
 	}
-	return attributevalue.UnmarshalListOfMaps(out.Items, items)
+	if err := i.k.unmarshal(items, out); err != nil {
+		return err
+	}
+	i.queryOutput = out
+	return nil
+}
+
+func (k *KV) find(items interface{}, limit int, keyCondition string, expressionAttributes map[string]types.AttributeValue) (*FindIterator, error) {
+	input := &dynamodb.QueryInput{
+		TableName:                 aws.String(k.tableName),
+		KeyConditionExpression:    aws.String(keyCondition),
+		ExpressionAttributeValues: expressionAttributes,
+	}
+	if limit > 0 {
+		input.Limit = aws.Int32(int32(limit))
+	}
+	out, err := k.svc.Query(context.TODO(), input)
+	if err != nil {
+		return nil, err
+	}
+	if err := k.unmarshal(items, out); err != nil {
+		return nil, err
+	}
+	return &FindIterator{
+		k:           k,
+		queryInput:  input,
+		queryOutput: out,
+	}, nil
 }
 
 func (k *KV) Delete(key ...string) error {
@@ -263,11 +335,7 @@ func (k *KV) Delete(key ...string) error {
 }
 
 func (k *KV) DeleteAll() error {
-	// same condition as in FindAll
-	keyCondition := fmt.Sprintf("%s=:PK", PK)
-	expressionAttributes := map[string]types.AttributeValue{
-		":PK": &types.AttributeValueMemberS{Value: k.partition},
-	}
+	keyCondition, expressionAttributes, _ := k.findConditions(FindAll)
 	var lastEvaluatedKey map[string]types.AttributeValue
 
 	for {

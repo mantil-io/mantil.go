@@ -43,8 +43,9 @@ func TestKVFindOperations(t *testing.T) {
 		require.NoError(t, err)
 	}
 	var todos []Todo
-	err = kv.FindAll(&todos)
+	iter, err := kv.FindAll(&todos)
 	require.NoError(t, err)
+	require.False(t, iter.HasMore())
 	require.Len(t, todos, 10)
 	for i, d := range todos {
 		require.Equal(t, fmt.Sprintf("%d", i), d.ID)
@@ -65,16 +66,39 @@ func TestKVFindOperations(t *testing.T) {
 	}
 	for _, c := range cases {
 		todos = make([]Todo, 0)
-		err = kv.Find(&todos, c.op, c.args...)
+		iter, err := kv.Find(&todos, c.op, c.args...)
 		require.NoError(t, err)
+		require.False(t, iter.HasMore())
 		require.Len(t, todos, c.requiredLen)
+		require.Equal(t, c.requiredLen, iter.Count())
 	}
+
+	// test find with paging
+	//todos = make([]Todo, 0)
+	iter, err = kv.findAllInPages(&todos, 4)
+	require.NoError(t, err)
+	require.True(t, iter.HasMore())
+	require.Len(t, todos, 4)
+	//fmt.Printf("%v\n", todos)
+
+	err = iter.Next(&todos)
+	require.NoError(t, err)
+	require.True(t, iter.HasMore())
+	//fmt.Printf("%v\n", todos)
+	require.Len(t, todos, 4)
+
+	err = iter.Next(&todos)
+	require.NoError(t, err)
+	require.False(t, iter.HasMore())
+	//fmt.Printf("%v\n", todos)
+	require.Len(t, todos, 2)
 
 	err = kv.DeleteAll()
 	require.NoError(t, err)
 
-	todos = make([]Todo, 0)
-	err = kv.FindAll(&todos)
+	//todos = make([]Todo, 0)
+	iter, err = kv.FindAll(&todos)
+	require.False(t, iter.HasMore())
 	require.NoError(t, err)
 	require.Len(t, todos, 0)
 }
@@ -107,9 +131,11 @@ func TestKVPutGet(t *testing.T) {
 	require.Equal(t, u2, u2r)
 
 	var users []User
-	err = kv.FindAll(&users)
+	iter, err := kv.FindAll(&users)
 	require.NoError(t, err)
 	require.Len(t, users, 2)
+	require.False(t, iter.HasMore())
+	require.Equal(t, 2, iter.Count())
 	require.Equal(t, u2, users[0])
 	require.Equal(t, u1, users[1])
 
@@ -117,7 +143,9 @@ func TestKVPutGet(t *testing.T) {
 	require.NoError(t, err)
 
 	users = make([]User, 0)
-	err = kv.FindAll(&users)
+	iter, err = kv.FindAll(&users)
+	require.False(t, iter.HasMore())
+	require.Equal(t, 0, iter.Count())
 	require.NoError(t, err)
 	require.Len(t, users, 0)
 }
