@@ -49,3 +49,5 @@ var interuptContext context.Context
 
 // options to hide panic logs in tests
 var logPanic = true
+
+var defaultConfig = &Config{}

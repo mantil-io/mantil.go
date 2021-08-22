@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -66,11 +65,6 @@ func (h *Hello) Error(ctx context.Context) (*WorldResponse, error) {
 func (h *Hello) Panic(ctx context.Context, req *WorldRequest) (*WorldResponse, error) {
 	rsp := WorldResponse{Response: "Hello, " + req.Name}
 	return &rsp, nil
-}
-
-func TestMain(m *testing.M) {
-	logPanic = false
-	os.Exit(m.Run())
 }
 
 func TestCaller(t *testing.T) {
@@ -235,7 +229,7 @@ func TestCallMethodWithArrayResponse(t *testing.T) {
 				}
 				expected := fmt.Sprintf(`{"Response":"Hello, %d"}`, i)
 				require.Equal(t, expected, string(buf))
-				t.Logf("%s\n", buf)
+				//t.Logf("%s\n", buf)
 			}
 		}
 	}

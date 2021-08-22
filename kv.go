@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"time"
 
@@ -16,9 +15,8 @@ import (
 )
 
 const (
-	KVTableNameEnv = "MANTIL_KV_TABLE_NAME"
-	PK             = "PK"
-	SK             = "SK"
+	PK = "PK"
+	SK = "SK"
 )
 
 type KV struct {
@@ -28,10 +26,11 @@ type KV struct {
 }
 
 func NewKV(partition string) (*KV, error) {
-	tn, ok := os.LookupEnv(KVTableNameEnv)
-	if !ok {
-		return nil, fmt.Errorf("table name not found, please set environment variable %s", KVTableNameEnv)
+	tn, err := defaultConfig.KvTableName()
+	if err != nil {
+		return nil, err
 	}
+
 	k := KV{
 		partition: partition,
 		tableName: tn,
