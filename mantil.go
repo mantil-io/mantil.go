@@ -2,6 +2,7 @@ package mantil
 
 import (
 	"context"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,4 +27,25 @@ func waitForInterupt() {
 	<-c
 }
 
+var logger *log.Logger
+
+func init() {
+	logger = log.New(os.Stderr, "[mantil] ", log.LstdFlags|log.Lmicroseconds|log.Lmsgprefix)
+}
+
+// turn off library logging
+func Silent() {
+	logger = nil
+}
+
+func info(format string, v ...interface{}) {
+	if logger == nil {
+		return
+	}
+	logger.Printf(format, v...)
+}
+
 var interuptContext context.Context
+
+// options to hide panic logs in tests
+var logPanic = true

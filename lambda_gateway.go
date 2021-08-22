@@ -55,7 +55,7 @@ func (h *lambdaApiGatewayHandler) Invoke(ctx context.Context, payload []byte) ([
 	rsp := h.caller.call(callerCtx, method, payload)
 	rspPayload, err := rsp.Raw()
 	if err != nil {
-		log.Printf("invoke of method %s failed with error: %v", method, err)
+		info("invoke of method %s failed with error: %v", method, err)
 	}
 	return rspPayload, err
 }

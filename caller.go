@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -134,8 +133,9 @@ func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (respo
 			// log panic stack trace
 			stackTrace := make([]byte, 8192)
 			_ = runtime.Stack(stackTrace, false)
-			log.Printf("PANIC %s, stack: %s", r, stackTrace)
-			// return err
+			if logPanic {
+				info("PANIC %s, stack: %s", r, stackTrace)
+			}
 			cr = callerErr(fmt.Errorf("PANIC %s", r), http.StatusInternalServerError)
 		}
 	}()

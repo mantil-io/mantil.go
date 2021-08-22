@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -67,7 +68,12 @@ func (h *Hello) Panic(ctx context.Context, req *WorldRequest) (*WorldResponse, e
 	return &rsp, nil
 }
 
-func Test(t *testing.T) {
+func TestMain(m *testing.M) {
+	logPanic = false
+	os.Exit(m.Run())
+}
+
+func TestCaller(t *testing.T) {
 	cases := []struct {
 		method     string
 		req        string
