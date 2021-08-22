@@ -8,7 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const usersPartition = "user"
+const (
+	usersPartition = "USERS"
+	todosPartition = "TODOS"
+)
 
 // test structure
 type User struct {
@@ -26,9 +29,8 @@ type Todo struct {
 	CompletedAt time.Time
 }
 
-func TestKVTodos(t *testing.T) {
-	partition := "TODOS"
-	kv, err := NewKV(partition)
+func TestKVFindOperations(t *testing.T) {
+	kv, err := NewKV(todosPartition)
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
@@ -41,7 +43,7 @@ func TestKVTodos(t *testing.T) {
 		require.NoError(t, err)
 	}
 	var todos []Todo
-	err = kv.GetAll(&todos)
+	err = kv.FindAll(&todos)
 	require.NoError(t, err)
 	require.Len(t, todos, 10)
 	for i, d := range todos {
@@ -49,56 +51,36 @@ func TestKVTodos(t *testing.T) {
 		require.Equal(t, fmt.Sprintf("todo item no %d", i), d.Description)
 	}
 
-	todos = make([]Todo, 0)
-	//err = kv.GetMany(&todos, GetKeyOptions{BeginsWith: "7"})
-	err = kv.Find(&todos, FindBeginsWith, "7")
-	require.NoError(t, err)
-	require.Len(t, todos, 1)
-
-	todos = make([]Todo, 0)
-	var opt GetKeyOptions
-	opt.Between.Start = "2"
-	opt.Between.End = "6"
-	err = kv.GetMany(&todos, opt)
-	require.NoError(t, err)
-	require.Len(t, todos, 5)
-
-	todos = make([]Todo, 0)
-	//err = kv.GetMany(&todos, GetKeyOptions{GreaterThan: "7"})
-	err = kv.Find(&todos, FindGreaterThan, "7")
-	require.NoError(t, err)
-	require.Len(t, todos, 2)
-
-	todos = make([]Todo, 0)
-	//err = kv.GetMany(&todos, GetKeyOptions{GreaterThanOrEqual: "7"})
-	err = kv.Find(&todos, FindGreaterThanOrEqual, "7")
-	require.NoError(t, err)
-	require.Len(t, todos, 3)
-
-	todos = make([]Todo, 0)
-	//err = kv.GetMany(&todos, GetKeyOptions{LessThan: "4"})
-	err = kv.Find(&todos, FindLessThan, "4")
-	require.NoError(t, err)
-	require.Len(t, todos, 4)
-
-	todos = make([]Todo, 0)
-	//err = kv.GetMany(&todos, GetKeyOptions{LessThanOrEqual: "4"})
-	err = kv.Find(&todos, FindLessThanOrEqual, "4")
-	require.NoError(t, err)
-	require.Len(t, todos, 5)
+	cases := []struct {
+		op          FindOperator
+		args        []string
+		requiredLen int
+	}{
+		{FindBeginsWith, []string{"7"}, 1},
+		{FindBetween, []string{"2", "6"}, 5},
+		{FindGreaterThan, []string{"7"}, 2},
+		{FindGreaterThanOrEqual, []string{"7"}, 3},
+		{FindLessThan, []string{"4"}, 4},
+		{FindLessThanOrEqual, []string{"4"}, 5},
+	}
+	for _, c := range cases {
+		todos = make([]Todo, 0)
+		err = kv.Find(&todos, c.op, c.args...)
+		require.NoError(t, err)
+		require.Len(t, todos, c.requiredLen)
+	}
 
 	err = kv.DeleteAll()
 	require.NoError(t, err)
 
 	todos = make([]Todo, 0)
-	err = kv.GetAll(&todos)
+	err = kv.FindAll(&todos)
 	require.NoError(t, err)
 	require.Len(t, todos, 0)
 }
 
-func TestKV(t *testing.T) {
-	partition := "USERS"
-	kv, err := NewKV(partition)
+func TestKVPutGet(t *testing.T) {
+	kv, err := NewKV(usersPartition)
 	require.NoError(t, err)
 
 	u1 := User{
@@ -119,65 +101,23 @@ func TestKV(t *testing.T) {
 	err = kv.Put(u2.Key, u2)
 	require.NoError(t, err)
 
-	// var u1r User
-	// err = kv.Get(u1.Key, &u1r)
-	// require.NoError(t, err)
-	// require.Equal(t, u1, u1r)
+	var u2r User
+	err = kv.Get(u2.Key, &u2r)
+	require.NoError(t, err)
+	require.Equal(t, u2, u2r)
 
 	var users []User
-	err = kv.GetAll(&users)
+	err = kv.FindAll(&users)
 	require.NoError(t, err)
 	require.Len(t, users, 2)
-	//fmt.Printf("users:\n%#v\n", users)
+	require.Equal(t, u2, users[0])
+	require.Equal(t, u1, users[1])
 
-	err = kv.deleteMany(u1.Key, u2.Key)
+	err = kv.Delete(u1.Key, u2.Key)
 	require.NoError(t, err)
 
 	users = make([]User, 0)
-	err = kv.GetAll(&users)
+	err = kv.FindAll(&users)
 	require.NoError(t, err)
 	require.Len(t, users, 0)
-
-	// // connect
-	// kv := kv{tableName: "mantil-project-try-first-try"}
-	// err := kv.connect()
-	// require.NoError(t, err)
-
-	// u := User{
-	// 	Email:     "ianic@mantil.com",
-	// 	FirstName: "Igor",
-	// 	LastName:  "Anic",
-	// }
-	// // put example, version 0 is insert without version checking
-	// err = kv.Put(usersPartition, u.Email, u, 0)
-	// require.NoError(t, err)
-	// // after this version is 1
-
-	// // get example
-	// var u2 User
-	// ver, err := kv.Get(usersPartition, u.Email, &u2)
-	// require.NoError(t, err)
-	// require.Equal(t, ver, 1)
-	// require.Equal(t, u, u2)
-	// require.Equal(t, u.Email, u2.Email)
-	// require.Equal(t, u.FirstName, u2.FirstName)
-	// require.Equal(t, u.LastName, u2.LastName)
-
-	// u.FirstName = u.FirstName + " 1"
-	// err = kv.Put(usersPartition, u.Email, u, ver)
-	// require.NoError(t, err)
-	// // after this put version in store is 2
-
-	// // example of stale item put
-	// // after preious put version is 2 in store
-	// // cant' update with the ver 1 any more
-	// u.FirstName = u.FirstName + " 2"
-	// err = kv.Put(usersPartition, u.Email, u, ver)
-	// require.Error(t, err)
-
-	// // chack that the error is of required type
-	// var staleErr *ErrStaleItemVersion
-	// require.ErrorAs(t, err, &staleErr)
-	// require.True(t, errors.As(err, &staleErr))
-	// require.Equal(t, 1, staleErr.Version)
 }
