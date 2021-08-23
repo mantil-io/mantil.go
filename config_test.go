@@ -8,12 +8,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConfigIsUnitTestEnv(t *testing.T) {
-	require.True(t, defaultConfig.isUnitTestEnv())
-	//fmt.Printf("args %v\n", os.Args)
-	//
-	beforeTestEnv, _ := os.LookupEnv(EnvKVTableName)
+func TestConfig(t *testing.T) {
+	// store current env
+	currentEnv := make(map[string]string)
+	for _, k := range mantilEnvVars {
+		currentEnv[k] = os.Getenv(k)
+		os.Unsetenv(k)
+	}
 
+	t.Run("", testKvTableName)
+
+	// reset env for other thests
+	for k, v := range currentEnv {
+		if v == "" {
+			os.Unsetenv(k)
+			continue
+		}
+		os.Setenv(k, v)
+	}
+}
+
+func testKvTableName(t *testing.T) {
 	nameFromEnv := "kv-test"
 	os.Setenv(EnvKVTableName, nameFromEnv)
 
@@ -27,11 +42,21 @@ func TestConfigIsUnitTestEnv(t *testing.T) {
 	require.True(t, strings.HasPrefix(expected, "mantil-go-"))
 	require.True(t, strings.HasSuffix(expected, "-unit"))
 
-	if beforeTestEnv != "" {
-		os.Setenv(EnvKVTableName, beforeTestEnv)
-	}
+	args0 := os.Args[0]
+	os.Args[0] = ""
+	expected, err = defaultConfig.KvTableName()
+	require.Error(t, err)
 
-	//fmt.Printf("table name: %s\n", expected)
+	os.Setenv(EnvStageName, "dev")
+	expected, err = defaultConfig.KvTableName()
+	require.Error(t, err)
+
+	os.Setenv(EnvProjectName, "project1")
+	expected, err = defaultConfig.KvTableName()
+	require.NoError(t, err)
+	require.Equal(t, expected, "project1-dev-kv")
+
+	os.Args[0] = args0
 }
 
 func TestMain(m *testing.M) {

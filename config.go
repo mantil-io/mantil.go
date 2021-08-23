@@ -13,17 +13,28 @@ const (
 	EnvKVTableName = "MANTIL_KV_TABLE_NAME"
 )
 
+var mantilEnvVars = []string{EnvProjectName, EnvStageName, EnvKVTableName}
+
 type Config struct {
 }
 
 func (c *Config) KvTableName() (string, error) {
-	if val, ok := os.LookupEnv(EnvKVTableName); ok {
+	val, err := ensureEnv(EnvKVTableName, "kv table name not found")
+	if val != "" {
 		return val, nil
 	}
 	if c.isUnitTestEnv() {
 		return fmt.Sprintf("mantil-go-%s-unit", c.username()), nil
 	}
-	return "", fmt.Errorf("table name not found, please set environment variable %s", EnvKVTableName)
+	stage, err := ensureEnv(EnvStageName, "stage name not found")
+	if err != nil {
+		return "", err
+	}
+	project, err := ensureEnv(EnvProjectName, "project name not found")
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-%s-kv", project, stage), nil
 }
 
 // hackery trick to know if I'm running in `go test`
@@ -42,12 +53,18 @@ func (c *Config) isIntegrationEnv() bool {
 	return true
 }
 
-func (c *Config) stageName() string {
+func (c *Config) stageName() (string, error) {
 	if val, ok := os.LookupEnv(EnvStageName); ok {
-		return val
+		return val, nil
 	}
-	// TODO what now
-	return ""
+	return "", fmt.Errorf("stage name not found, please set environment variable %s", EnvStageName)
+}
+
+func ensureEnv(envVarName, errPrefix string) (string, error) {
+	if val, ok := os.LookupEnv(envVarName); ok {
+		return val, nil
+	}
+	return "", fmt.Errorf("%s, please set environment variable %s", errPrefix, envVarName)
 }
 
 func (c *Config) projectName() string {
