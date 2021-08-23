@@ -6,8 +6,8 @@ import (
 	"io"
 	"log"
 
-	"github.com/atoz-technology/mantil.go/pkg/lambdactx"
-	"github.com/atoz-technology/mantil.go/pkg/nats"
+	"github.com/mantil-io/mantil.go/pkg/lambdactx"
+	"github.com/mantil-io/mantil.go/pkg/nats"
 )
 
 func CaptureLambda(ctx context.Context) (func(), error) {

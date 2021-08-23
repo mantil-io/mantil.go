@@ -7,7 +7,7 @@ import (
 	"log"
 	"sync"
 
-	mnats "github.com/atoz-technology/mantil.go/pkg/nats"
+	mnats "github.com/mantil-io/mantil.go/pkg/nats"
 	"github.com/nats-io/nats.go"
 )
 
