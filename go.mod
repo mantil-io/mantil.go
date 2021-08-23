@@ -1,4 +1,4 @@
-module github.com/atoz-technology/mantil.go
+module github.com/mantil-io/mantil.go
 
 go 1.16
 

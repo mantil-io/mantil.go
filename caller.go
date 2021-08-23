@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/atoz-technology/mantil.go/pkg/logs"
+	"github.com/mantil-io/mantil.go/pkg/logs"
 )
 
 func newCaller(i interface{}) *caller {

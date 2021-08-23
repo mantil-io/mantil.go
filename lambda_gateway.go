@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/atoz-technology/mantil.go/pkg/lambdactx"
+	"github.com/mantil-io/mantil.go/pkg/lambdactx"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
