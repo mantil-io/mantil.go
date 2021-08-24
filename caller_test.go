@@ -67,6 +67,10 @@ func (h *Hello) Panic(ctx context.Context, req *WorldRequest) (*WorldResponse, e
 	return &rsp, nil
 }
 
+func (h *Hello) Ping() string {
+	return "pong"
+}
+
 func TestCaller(t *testing.T) {
 	cases := []struct {
 		method     string
@@ -140,6 +144,12 @@ func TestCaller(t *testing.T) {
 			method:     "arrayresponse",
 			req:        "",
 			rsp:        "[{\"Response\":\"Hello, 0\"},{\"Response\":\"Hello, 1\"},{\"Response\":\"Hello, 2\"},{\"Response\":\"Hello, 3\"},{\"Response\":\"Hello, 4\"},{\"Response\":\"Hello, 5\"},{\"Response\":\"Hello, 6\"},{\"Response\":\"Hello, 7\"},{\"Response\":\"Hello, 8\"},{\"Response\":\"Hello, 9\"}]",
+			statusCode: 200,
+		},
+		{
+			method:     "ping",
+			req:        "",
+			rsp:        "pong",
 			statusCode: 200,
 		},
 	}

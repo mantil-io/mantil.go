@@ -168,16 +168,21 @@ func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []b
 		if len(reqPayload) == 0 && eventType.Kind() == reflect.Ptr {
 			args = append(args, event.Elem())
 		} else {
-			if len(reqPayload) == 0 {
-				reqPayload = []byte(`{}`)
+			switch eventType.Kind() {
+			case reflect.String:
+				args = append(args, reflect.ValueOf(string(reqPayload)))
+			default:
+				if len(reqPayload) == 0 {
+					reqPayload = []byte(`{}`)
+				}
+				if err := json.Unmarshal(reqPayload, event.Interface()); err != nil {
+					return nil, callerErr(
+						fmt.Errorf("unable to unmarshal request into %s, error: %w", eventType.Name(), err),
+						http.StatusBadRequest,
+					)
+				}
+				args = append(args, event.Elem())
 			}
-			if err := json.Unmarshal(reqPayload, event.Interface()); err != nil {
-				return nil, callerErr(
-					fmt.Errorf("unable to unmarshal request into %s, error: %w", eventType.Name(), err),
-					http.StatusBadRequest,
-				)
-			}
-			args = append(args, event.Elem())
 		}
 	}
 	return args, nil
@@ -189,28 +194,39 @@ func (c *caller) parseResponse(response []reflect.Value) *callResponse {
 	}
 	// convert return values into (interface{}, error)
 	var err error
+	var isLastArgError bool
 	if len(response) > 0 {
 		if errVal, ok := response[len(response)-1].Interface().(error); ok {
 			err = errVal
+			isLastArgError = true
 		}
 	}
 	if err != nil {
 		return callerErr(err, http.StatusInternalServerError)
 	}
-	if len(response) == 1 {
+	if len(response) == 1 && isLastArgError {
 		return callerRsp(nil)
 	}
 	val := response[0].Interface()
 	if val == nil {
 		return callerRsp(nil)
 	}
-	// marshal val
-	rspPayload, err := json.Marshal(val)
-	if err != nil {
-		return callerErr(fmt.Errorf("unable to marshal response, error %w", err), http.StatusServiceUnavailable)
-	}
-	if len(rspPayload) == 4 && string(rspPayload) == "null" {
-		return callerRsp(nil)
+
+	var rspPayload []byte
+	switch v := val.(type) {
+	case []byte:
+		rspPayload = v
+	case string:
+		rspPayload = []byte(v)
+	default:
+		// marshal val
+		rspPayload, err = json.Marshal(val)
+		if err != nil {
+			return callerErr(fmt.Errorf("unable to marshal response, error %w", err), http.StatusServiceUnavailable)
+		}
+		if len(rspPayload) == 4 && string(rspPayload) == "null" {
+			return callerRsp(nil)
+		}
 	}
 	return callerRsp(rspPayload)
 }
