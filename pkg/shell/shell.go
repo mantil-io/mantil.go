@@ -16,14 +16,14 @@ type ExecOptions struct {
 	SucessStatuses []int
 	Logger         func(format string, v ...interface{})
 	ErrorsMap      map[string]error
+	ShowShellCmd   bool
 }
 
 func Exec(opt ExecOptions) error {
 	r := runner{
-		dir:       opt.WorkDir,
-		verbose:   true,
-		output:    opt.Logger,
-		errorsMap: opt.ErrorsMap,
+		verbose: true,
+		output:  opt.Logger,
+		opt:     opt,
 	}
 	if opt.Logger == nil {
 		var std = log.New(os.Stderr, log.Prefix(), 0)
@@ -31,9 +31,7 @@ func Exec(opt ExecOptions) error {
 			std.Printf(format, v...)
 		}
 	}
-	if opt.Env != nil {
-		r.env = addCurrentPath(opt.Env)
-	}
+	r.env = append(os.Environ(), opt.Env...)
 	return r.runCmd(opt.Args, opt.SucessStatuses...)
 }
 
@@ -51,17 +49,16 @@ func addCurrentPath(env []string) []string {
 }
 
 type runner struct {
-	verbose   bool
-	dir       string
-	env       []string
-	output    func(format string, v ...interface{})
-	errorsMap map[string]error
-	err       error
+	verbose bool
+	env     []string
+	output  func(format string, v ...interface{})
+	err     error
+	opt     ExecOptions
 }
 
 func (r *runner) runCmd(args []string, successStatuses ...int) error {
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Dir = r.dir
+	cmd.Dir = r.opt.WorkDir
 	if r.env != nil {
 		cmd.Env = r.env
 	}
@@ -82,11 +79,13 @@ func (r *runner) runCmd(args []string, successStatuses ...int) error {
 		return err
 	}
 	if r.verbose {
-		printCmd()
-		if err := r.printToConsole(stdout); err != nil {
+		if r.opt.ShowShellCmd {
+			printCmd()
+		}
+		if err := r.catchOutput(stdout); err != nil {
 			return err
 		}
-		if err := r.printToConsole(stderr); err != nil {
+		if err := r.catchOutput(stderr); err != nil {
 			return err
 		}
 	}
@@ -100,7 +99,7 @@ func (r *runner) runCmd(args []string, successStatuses ...int) error {
 		}
 	}
 	if exitCode != 0 {
-		if !r.verbose {
+		if !r.opt.ShowShellCmd {
 			printCmd()
 		}
 		r.output("FAILED with exit status %d", exitCode)
@@ -111,7 +110,7 @@ func (r *runner) runCmd(args []string, successStatuses ...int) error {
 	return err
 }
 
-func (r *runner) printToConsole(rdr io.ReadCloser) error {
+func (r *runner) catchOutput(rdr io.ReadCloser) error {
 	buf := make([]byte, 1024*16)
 	for {
 		n, err := rdr.Read(buf[:])
@@ -123,8 +122,8 @@ func (r *runner) printToConsole(rdr io.ReadCloser) error {
 					continue
 				}
 				// find error in line
-				if r.err == nil && len(r.errorsMap) > 0 {
-					for k, v := range r.errorsMap {
+				if r.err == nil && len(r.opt.ErrorsMap) > 0 {
+					for k, v := range r.opt.ErrorsMap {
 						if strings.Contains(line, k) {
 							r.err = v
 						}
