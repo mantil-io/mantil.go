@@ -179,14 +179,18 @@ func TestCaller(t *testing.T) {
 	})
 
 	t.Run("lambda api gateway handler", func(t *testing.T) {
-		handler := newLambdaApiGatewayHandler(api)
+		handler := newHandler(api)
 		for _, c := range cases {
 			ctx := context.Background()
 			req := events.APIGatewayProxyRequest{
 				PathParameters: map[string]string{"path": c.method},
 				Body:           c.req,
 			}
-			rsp, err := handler.callback(ctx, req)
+			reqPayload, _ := json.Marshal(req)
+			rspPayload, err := handler.processAPIGatewayRequest(ctx, reqPayload)
+			require.NoError(t, err)
+			var rsp events.APIGatewayProxyResponse
+			err = json.Unmarshal(rspPayload, &rsp)
 			require.NoError(t, err)
 			require.Equal(t, c.rsp, rsp.Body)
 			require.Equal(t, c.statusCode, rsp.StatusCode)
