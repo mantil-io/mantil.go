@@ -108,8 +108,6 @@ func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	if err := l.showLog(output.LogResult); err != nil {
 		return nil, fmt.Errorf("showLog failed %w", err)
 	}
-
-	//fmt.Printf("output payload: %s, log: %s, version: %s\n", output.Payload, outputLog, *output.ExecutedVersion)
 	return output.Payload, nil
 }
 
@@ -147,8 +145,6 @@ func (l *LambdaInvoker) showLog(logResult *string) error {
 	}
 	return nil
 }
-
-// reqex wich parses report line: https://regex101.com/r/fhriQd/1
 
 func instanceMetadata() (*imds.GetInstanceIdentityDocumentOutput, *aws.Config, error) {
 	imdsc := imds.New(imds.Options{}) // Amazon EC2 Instance Metadata Service Client

@@ -21,13 +21,23 @@ const (
 )
 
 type Message struct {
-	Type         MessageType
-	ConnectionID string
-	Subjects     []string
-	Subject      string
-	URI          string
-	Inbox        string
-	Payload      []byte
+	Type         MessageType `json:"type"`
+	ConnectionID string      `json:"connectionID"`
+	Subjects     []string    `json:"subjects"`
+	Subject      string      `json:"subject"`
+	URI          string      `json:"uri"`
+	Inbox        string      `json:"inbox"`
+	Payload      []byte      `json:"payload"`
+}
+
+var MessageKeys = []string{
+	"type",
+	"connectionID",
+	"subjects",
+	"subject",
+	"uri",
+	"inbox",
+	"payload",
 }
 
 func (m *Message) ToProto() ([]byte, error) {
