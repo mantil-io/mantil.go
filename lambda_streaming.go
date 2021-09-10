@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -47,6 +48,10 @@ func toStreamingSqs(m *proto.Message, groupId string) error {
 }
 
 func initialiseStreamingSqs() error {
+	projectName := os.Getenv(EnvProjectName)
+	if projectName == "" {
+		return fmt.Errorf("project name env variable %s is not set", EnvProjectName)
+	}
 	config, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
 		return fmt.Errorf("unable to load SDK configuration - %v", err)
@@ -54,7 +59,7 @@ func initialiseStreamingSqs() error {
 	sqsClient = sqs.NewFromConfig(config)
 
 	out, err := sqsClient.GetQueueUrl(context.Background(), &sqs.GetQueueUrlInput{
-		QueueName: aws.String("mantil-ws-queue.fifo"),
+		QueueName: aws.String(fmt.Sprintf("mantil-project-%s-ws-queue.fifo", projectName)),
 	})
 	if err != nil {
 		return err
