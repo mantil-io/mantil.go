@@ -1,0 +1,32 @@
+{
+    "requestContext": {
+        "routeKey": "$default",
+        "authorizer": {
+            "mantilProject": "my-project",
+            "principalId": "Mantil",
+            "mantilRuntime": "dev",
+            "mantilUserClaims": "{\"w\":\"my-workspace\",\"p\":\"my-project\",\"d\":\"ianic-dev\",\"r\":\"dev\",\"u\":\"ianic\"}",
+            "mantilWorkspace": "my-workspace",
+            "mantilDeployment": "ianic-dev",
+            "mantilRole": "0",
+            "mantilUsername": "ianic"
+        },
+        "messageId": "FVzn1fxCFiACHtQ=",
+        "eventType": "MESSAGE",
+        "extendedRequestId": "FVzn1EIkFiAFnoA=",
+        "requestTime": "08/Sep/2021:11:07:17 +0000",
+        "messageDirection": "IN",
+        "stage": "production",
+        "connectedAt": 1631099058908,
+        "requestTimeEpoch": 1631099237188,
+        "identity": {
+            "sourceIp": "93.136.54.42"
+        },
+        "requestId": "FVzn1EIkFiAFnoA=",
+        "domainName": "u0b382ruae.execute-api.eu-central-1.amazonaws.com",
+        "connectionId": "FVzL_fZ8liACHtQ=",
+        "apiId": "u0b382ruae"
+    },
+    "body": "{\"key\": \"value\"}",
+    "isBase64Encoded": false
+}

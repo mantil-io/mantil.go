@@ -1,0 +1,122 @@
+{
+    "resource": "/ping",
+    "path": "/ping",
+    "httpMethod": "POST",
+    "headers": {
+        "Accept": "*/*",
+        "CloudFront-Forwarded-Proto": "https",
+        "CloudFront-Is-Desktop-Viewer": "true",
+        "CloudFront-Is-Mobile-Viewer": "false",
+        "CloudFront-Is-SmartTV-Viewer": "false",
+        "CloudFront-Is-Tablet-Viewer": "false",
+        "CloudFront-Viewer-Country": "HR",
+        "Host": "0x14fc0zbl.execute-api.eu-central-1.amazonaws.com",
+        "User-Agent": "curl/7.64.1",
+        "Via": "2.0 e7ac510e4ba21d85d8aee7d252b283a9.cloudfront.net (CloudFront)",
+        "X-Amz-Cf-Id": "41P48xwDxC-EURyJ1wIclaxzkOAaRRF19Lvy_Dn9lNJ0DYDiw5BG4Q==",
+        "X-Amzn-Trace-Id": "Root=1-6138bad8-164d02647046a7f67d2bf5c8",
+        "X-Forwarded-For": "93.136.54.42, 130.176.45.80",
+        "X-Forwarded-Port": "443",
+        "X-Forwarded-Proto": "https",
+        "x-mantil-access-token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJ3IjoibXktd29ya3NwYWNlIiwicCI6Im15LXByb2plY3QiLCJkIjoiaWFuaWMtZGV2IiwiciI6ImRldiIsInUiOiJpYW5pYyIsImlhdCI6MTYzMTEwNTkzMywiZXhwIjoxNjMxMTA5NTMzfQ.fPCnMO1TDFpPkRqGV27tq8gFlyJXXSXhQI91Kc_Gh836RxYWeuG4e9wPHsrK4WDAhsxTSfaJUQn7p552qdqWDQ"
+    },
+    "multiValueHeaders": {
+        "Accept": [
+            "*/*"
+        ],
+        "CloudFront-Forwarded-Proto": [
+            "https"
+        ],
+        "CloudFront-Is-Desktop-Viewer": [
+            "true"
+        ],
+        "CloudFront-Is-Mobile-Viewer": [
+            "false"
+        ],
+        "CloudFront-Is-SmartTV-Viewer": [
+            "false"
+        ],
+        "CloudFront-Is-Tablet-Viewer": [
+            "false"
+        ],
+        "CloudFront-Viewer-Country": [
+            "HR"
+        ],
+        "Host": [
+            "0x14fc0zbl.execute-api.eu-central-1.amazonaws.com"
+        ],
+        "User-Agent": [
+            "curl/7.64.1"
+        ],
+        "Via": [
+            "2.0 e7ac510e4ba21d85d8aee7d252b283a9.cloudfront.net (CloudFront)"
+        ],
+        "X-Amz-Cf-Id": [
+            "41P48xwDxC-EURyJ1wIclaxzkOAaRRF19Lvy_Dn9lNJ0DYDiw5BG4Q=="
+        ],
+        "X-Amzn-Trace-Id": [
+            "Root=1-6138bad8-164d02647046a7f67d2bf5c8"
+        ],
+        "X-Forwarded-For": [
+            "93.136.54.42, 130.176.45.80"
+        ],
+        "X-Forwarded-Port": [
+            "443"
+        ],
+        "X-Forwarded-Proto": [
+            "https"
+        ],
+        "x-mantil-access-token": [
+            "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJ3IjoibXktd29ya3NwYWNlIiwicCI6Im15LXByb2plY3QiLCJkIjoiaWFuaWMtZGV2IiwiciI6ImRldiIsInUiOiJpYW5pYyIsImlhdCI6MTYzMTEwNTkzMywiZXhwIjoxNjMxMTA5NTMzfQ.fPCnMO1TDFpPkRqGV27tq8gFlyJXXSXhQI91Kc_Gh836RxYWeuG4e9wPHsrK4WDAhsxTSfaJUQn7p552qdqWDQ"
+        ]
+    },
+    "queryStringParameters": null,
+    "multiValueQueryStringParameters": null,
+    "pathParameters": {
+      "path": "MethodName"
+    },
+    "stageVariables": null,
+    "requestContext": {
+        "resourceId": "j8hzt7",
+        "authorizer": {
+            "mantilProject": "my-project",
+            "principalId": "Mantil",
+            "integrationLatency": 0,
+            "mantilRuntime": "dev",
+            "mantilUserClaims": "{\"w\":\"my-workspace\",\"p\":\"my-project\",\"d\":\"ianic-dev\",\"r\":\"dev\",\"u\":\"ianic\"}",
+            "mantilWorkspace": "my-workspace",
+            "mantilDeployment": "ianic-dev",
+            "mantilRole": "0",
+            "mantilUsername": "ianic"
+        },
+        "resourcePath": "/ping",
+        "httpMethod": "POST",
+        "extendedRequestId": "FWIh7Fn8liAFk-Q=",
+        "requestTime": "08/Sep/2021:13:30:00 +0000",
+        "path": "/main/ping",
+        "accountId": "052548195718",
+        "protocol": "HTTP/1.1",
+        "stage": "main",
+        "domainPrefix": "0x14fc0zbl",
+        "requestTimeEpoch": 1631107800946,
+        "requestId": "0ad3d912-3d44-4855-ac22-3d9bb0ec2d48",
+        "identity": {
+            "cognitoIdentityPoolId": null,
+            "accountId": null,
+            "cognitoIdentityId": null,
+            "caller": null,
+            "sourceIp": "93.136.54.42",
+            "principalOrgId": null,
+            "accessKey": null,
+            "cognitoAuthenticationType": null,
+            "cognitoAuthenticationProvider": null,
+            "userArn": null,
+            "userAgent": "curl/7.64.1",
+            "user": null
+        },
+        "domainName": "0x14fc0zbl.execute-api.eu-central-1.amazonaws.com",
+        "apiId": "0x14fc0zbl"
+    },
+    "body": "{\"key\": \"value\"}",
+    "isBase64Encoded": false
+}

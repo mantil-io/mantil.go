@@ -1,0 +1,52 @@
+{
+    "headers": {
+        "Host": "u0b382ruae.execute-api.eu-central-1.amazonaws.com",
+        "x-api-key": "",
+        "X-Forwarded-For": "",
+        "x-restapi": ""
+    },
+    "multiValueHeaders": {
+        "Host": [
+            "u0b382ruae.execute-api.eu-central-1.amazonaws.com"
+        ],
+        "x-api-key": [
+            ""
+        ],
+        "X-Forwarded-For": [
+            ""
+        ],
+        "x-restapi": [
+            ""
+        ]
+    },
+    "requestContext": {
+        "routeKey": "$disconnect",
+        "disconnectStatusCode": 1001,
+        "authorizer": {
+            "mantilProject": "my-project",
+            "principalId": "Mantil",
+            "mantilRuntime": "dev",
+            "mantilUserClaims": "{\"w\":\"my-workspace\",\"p\":\"my-project\",\"d\":\"ianic-dev\",\"r\":\"dev\",\"u\":\"ianic\"}",
+            "mantilWorkspace": "my-workspace",
+            "mantilDeployment": "ianic-dev",
+            "mantilRole": "0",
+            "mantilUsername": "ianic"
+        },
+        "eventType": "DISCONNECT",
+        "extendedRequestId": "FWFevHx4FiAFbOw=",
+        "requestTime": "08/Sep/2021:13:09:11 +0000",
+        "messageDirection": "IN",
+        "disconnectReason": "Going away",
+        "stage": "production",
+        "connectedAt": 1631105949870,
+        "requestTimeEpoch": 1631106551714,
+        "identity": {
+            "sourceIp": "93.136.54.42"
+        },
+        "requestId": "FWFevHx4FiAFbOw=",
+        "domainName": "u0b382ruae.execute-api.eu-central-1.amazonaws.com",
+        "connectionId": "FWEAsf_kliACE8A=",
+        "apiId": "u0b382ruae"
+    },
+    "isBase64Encoded": false
+}

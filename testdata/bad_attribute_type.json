@@ -1,0 +1,5 @@
+{
+    "path": true,
+    "URI": "api.method",
+    "req": {"key": "value"}
+}

@@ -1,0 +1,6 @@
+{
+  "uri": "myMethod",
+  "req" : {
+    "key": "value"
+  }
+}

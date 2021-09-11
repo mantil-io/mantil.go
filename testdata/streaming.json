@@ -1,0 +1,6 @@
+{
+    "type": "SUB",
+    "connectionID": "pero",
+    "URI": "api.methodName",
+    "payload": "eyJLZXkiOiJ2YWx1ZSJ9"
+}
