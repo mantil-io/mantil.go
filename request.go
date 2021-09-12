@@ -34,7 +34,7 @@ type requestAttributes struct {
 	HTTPMethod     string            `json:"httpMethod"`
 	PathParameters map[string]string `json:"pathParameters"`
 	RequestContext struct {
-		Identity     map[string]interface{} `json:"identity"`
+		Authorizer   map[string]interface{} `json:"authorizer"`
 		ConnectionID string                 `json:"connectionId"` // postoji samo kod ws
 		EventType    string                 `json:"eventType"`    // ws: MESSAGE,
 		Protocol     string                 `json:"protocol"`     // HTTP... // postoji samo kod API

@@ -103,6 +103,14 @@ type RequestContext struct {
 	Lambda    *lambdacontext.LambdaContext
 }
 
+func (r *RequestContext) Authorizer() map[string]interface{} {
+	return r.Request.attr.RequestContext.Authorizer
+}
+
+func (r *RequestContext) WSConnectionID() string {
+	return r.Request.attr.RequestContext.ConnectionID
+}
+
 // An unexported type to be used as the key for types in this package.
 // This prevents collisions with keys defined in other packages.
 type key struct{}
