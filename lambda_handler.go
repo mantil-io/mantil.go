@@ -32,9 +32,9 @@ func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, re
 	closeLogs := h.captureLogs(req, lCtx)
 	defer closeLogs()
 
-	rsp := h.caller.call(reqCtx, req.Method, req.Body)
+	rsp := h.caller.call(reqCtx, req.Body, req.Methods...)
 	if err := rsp.Err(); err != nil {
-		info("invoke of method %s failed with error: %v", req.Method, err)
+		info("invoke of method %v failed with error: %v", req.Methods, err)
 	}
 	return req, rsp
 }

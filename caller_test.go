@@ -167,7 +167,7 @@ func TestCaller(t *testing.T) {
 			}
 			caller := newCaller(api)
 
-			rsp := caller.call(ctx, c.method, reqPayload)
+			rsp := caller.call(ctx, reqPayload, c.method)
 			if c.error == "" {
 				require.NoError(t, rsp.err)
 			} else {

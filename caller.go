@@ -120,29 +120,31 @@ func errResponse(err error, statusCode int) response {
 }
 
 // Inspiration: https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go
-func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte) response {
-	methodName = strings.Replace(strings.ToLower(methodName), "-", "", -1)
-	if methodName == "" {
-		for _, name := range []string{"Invoke", "Root", "Default"} {
-			if method, ok := c.typ.MethodByName(name); ok {
-				return c.callMethod(method, ctx, reqPayload)
+func (c *caller) call(ctx context.Context, reqPayload []byte, methodNames ...string) response {
+	for _, methodName := range methodNames {
+		methodName = strings.Replace(strings.ToLower(methodName), "-", "", -1)
+		if methodName == "" {
+			for _, name := range []string{"Invoke", "Root", "Default"} {
+				if method, ok := c.typ.MethodByName(name); ok {
+					return c.callMethod(method, ctx, reqPayload)
+				}
 			}
+			return errResponse(
+				fmt.Errorf("can't find Invoke/Root/Default method in %s", c.typ.Name()),
+				http.StatusNotImplemented,
+			)
 		}
-		return errResponse(
-			fmt.Errorf("can't find Invoke/Root/Default method in %s", c.typ.Name()),
-			http.StatusNotImplemented,
-		)
-	}
 
-	for i := 0; i < c.typ.NumMethod(); i++ {
-		method := c.typ.Method(i)
-		if methodName != strings.ToLower(method.Name) {
-			continue
+		for i := 0; i < c.typ.NumMethod(); i++ {
+			method := c.typ.Method(i)
+			if methodName != strings.ToLower(method.Name) {
+				continue
+			}
+			return c.callMethod(method, ctx, reqPayload)
 		}
-		return c.callMethod(method, ctx, reqPayload)
 	}
 	return errResponse(
-		fmt.Errorf("method %s not found", methodName),
+		fmt.Errorf("method %v not found", methodNames),
 		http.StatusNotImplemented,
 	)
 }

@@ -21,7 +21,7 @@ const (
 
 type Request struct {
 	Type    RequestType
-	Method  string
+	Methods []string
 	Body    []byte
 	Raw     []byte
 	Headers map[string]string
@@ -58,7 +58,7 @@ func parseRequest(raw []byte) (req Request) {
 		Raw:  raw,
 	}
 	if err := json.Unmarshal(raw, &req.attr); err != nil {
-		req.Method = req.method()
+		req.Methods = []string{req.method()}
 		req.Body = raw
 		if b := req.body(); b != nil {
 			req.Body = b
@@ -67,7 +67,7 @@ func parseRequest(raw []byte) (req Request) {
 	}
 	req.detectType()
 	req.Body = req.body()
-	req.Method = req.method()
+	req.Methods = req.methods()
 	req.Headers = req.attr.Headers
 	return
 }
@@ -100,6 +100,19 @@ func (r *Request) detectType() {
 	if r.attr.URI != "" && r.attr.ConnectionID != "" {
 		r.Type = Streaming
 		return
+	}
+}
+
+func (r *Request) methods() []string {
+	switch r.Type {
+	case WSConnect:
+		return []string{"Connect", ""}
+	case WSDisconnect:
+		return []string{"Disconnect", ""}
+	case WSMessage:
+		return []string{"Message", ""}
+	default:
+		return []string{r.method()}
 	}
 }
 
