@@ -159,7 +159,7 @@ func TestCaller(t *testing.T) {
 	api := &Hello{}
 
 	t.Run("caller", func(t *testing.T) {
-		for _, c := range cases {
+		for i, c := range cases {
 			ctx := context.Background()
 			var reqPayload []byte
 			if len(c.req) > 0 {
@@ -174,7 +174,7 @@ func TestCaller(t *testing.T) {
 				require.Error(t, rsp.err)
 				require.Equal(t, c.error, rsp.err.Error())
 			}
-			require.Equal(t, c.statusCode, rsp.StatusCode())
+			require.Equal(t, c.statusCode, rsp.StatusCode(), "case %d", i)
 			require.Equal(t, c.rsp, string(rsp.payload))
 		}
 	})
@@ -190,7 +190,7 @@ func TestCaller(t *testing.T) {
 				Body:           c.req,
 			}
 			reqPayload, _ := json.Marshal(aReq)
-			_, rspp := handler.call(ctx, reqPayload)
+			_, rspp := handler.invoke(ctx, reqPayload)
 			rspPayload, err := rspp.AsAPIGateway()
 			require.NoError(t, err)
 
@@ -214,7 +214,7 @@ func TestCaller(t *testing.T) {
 				Payload:      []byte(c.req),
 			}
 			reqPayload, _ := json.Marshal(msg)
-			req, rsp := handler.call(ctx, reqPayload)
+			req, rsp := handler.invoke(ctx, reqPayload)
 			rm, err := rsp.AsStreaming(req)
 			if c.error == "" {
 				require.NoError(t, err, "case %d", i)
@@ -244,7 +244,7 @@ func TestCaller(t *testing.T) {
 				Body: c.req,
 			}
 			reqPayload, _ := json.Marshal(msg)
-			_, rsp := handler.call(ctx, reqPayload)
+			_, rsp := handler.invoke(ctx, reqPayload)
 			rspPayload, err := rsp.Raw()
 			if c.error == "" {
 				require.NoError(t, err, "case %d", i)

@@ -26,17 +26,12 @@ func LambdaHandler(api interface{}) {
 	lambda.StartHandler(handler)
 }
 
-func (h *lambdaHandler) call(ctx context.Context, payload []byte) (Request, *callResponse) {
+func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, callResponse) {
 	req := parseRequest(payload)
 	reqCtx, lCtx := h.initContext(ctx, req)
-	if logInbox := h.findLogInbox(req, lCtx); logInbox != "" {
-		close, err := logs.Capture(logInbox)
-		if err != nil {
-			info("failed to capture logs %v", err)
-		} else {
-			defer close()
-		}
-	}
+	closeLogs := h.captureLogs(req, lCtx)
+	defer closeLogs()
+
 	rsp := h.caller.call(reqCtx, req.Method, req.Body)
 	if err := rsp.Err(); err != nil {
 		info("invoke of method %s failed with error: %v", req.Method, err)
@@ -44,8 +39,7 @@ func (h *lambdaHandler) call(ctx context.Context, payload []byte) (Request, *cal
 	return req, rsp
 }
 
-func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
-	req, rsp := h.call(ctx, payload)
+func (h *lambdaHandler) formatResponse(req Request, rsp callResponse) ([]byte, error) {
 	switch req.Type {
 	case APIGateway:
 		return rsp.AsAPIGateway()
@@ -62,6 +56,10 @@ func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, err
 	}
 }
 
+func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
+	return h.formatResponse(h.invoke(ctx, payload))
+}
+
 func (h *lambdaHandler) initContext(ctx context.Context, req Request) (context.Context, *lambdacontext.LambdaContext) {
 	h.requestNo++
 	log.SetFlags(0)
@@ -74,6 +72,19 @@ func (h *lambdaHandler) initContext(ctx context.Context, req Request) (context.C
 		cv.Lambda = lc
 	}
 	return context.WithValue(ctx, ContextKey, &cv), lc
+}
+
+func (h *lambdaHandler) captureLogs(req Request, lCtx *lambdacontext.LambdaContext) func() {
+	if logInbox := h.findLogInbox(req, lCtx); logInbox != "" {
+		close, err := logs.Capture(logInbox)
+		if err != nil {
+			info("failed to capture logs %v", err)
+		}
+		if close != nil {
+			return close
+		}
+	}
+	return func() {}
 }
 
 func (h *lambdaHandler) findLogInbox(req Request, lc *lambdacontext.LambdaContext) string {

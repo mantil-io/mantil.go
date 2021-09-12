@@ -97,30 +97,30 @@ func (c *callResponse) AsStreaming(req Request) (*proto.Message, error) {
 	return &rm, nil
 }
 
-func callerRsp(payload []byte) *callResponse {
+func callerRsp(payload []byte) callResponse {
 	if payload == nil {
-		return &callResponse{
+		return callResponse{
 			statusCode: http.StatusNoContent,
 		}
 	}
-	return &callResponse{
+	return callResponse{
 		payload:    payload,
 		statusCode: http.StatusOK,
 	}
 }
 
-func callerErr(err error, statusCode int) *callResponse {
+func callerErr(err error, statusCode int) callResponse {
 	if statusCode == 0 {
 		statusCode = http.StatusServiceUnavailable
 	}
-	return &callResponse{
+	return callResponse{
 		statusCode: statusCode,
 		err:        err,
 	}
 }
 
 // Inspiration: https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go
-func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte) *callResponse {
+func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte) callResponse {
 	methodName = strings.Replace(strings.ToLower(methodName), "-", "", -1)
 	if methodName == "" {
 		for _, name := range []string{"Invoke", "Root", "Default"} {
@@ -147,20 +147,20 @@ func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte)
 	)
 }
 
-func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPayload []byte) *callResponse {
+func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPayload []byte) callResponse {
 	args, cr := c.args(method, ctx, reqPayload)
 	if cr != nil {
-		return cr
+		return *cr
 	}
-	response, cr := c.callWithRecover(method.Func, args)
+	rspArgs, cr := c.callWithRecover(method.Func, args)
 	if cr != nil {
-		return cr
+		return *cr
 	}
 
-	return c.parseResponse(response)
+	return c.parseRspArgs(rspArgs)
 }
 
-func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (response []reflect.Value, cr *callResponse) {
+func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (rpsArgs []reflect.Value, cr *callResponse) {
 	defer func() {
 		if r := recover(); r != nil {
 			// log panic stack trace
@@ -169,11 +169,12 @@ func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (respo
 			if logPanic {
 				info("PANIC %s, stack: %s", r, stackTrace)
 			}
-			cr = callerErr(fmt.Errorf("PANIC %s", r), http.StatusInternalServerError)
+			cErr := callerErr(fmt.Errorf("PANIC %s", r), http.StatusInternalServerError)
+			cr = &cErr
 		}
 	}()
 	cr = nil
-	response = fun.Call(args)
+	rpsArgs = fun.Call(args)
 	return
 }
 
@@ -209,10 +210,11 @@ func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []b
 					reqPayload = []byte(`{}`)
 				}
 				if err := json.Unmarshal(reqPayload, event.Interface()); err != nil {
-					return nil, callerErr(
+					cr := callerErr(
 						fmt.Errorf("unable to unmarshal request into %s, error: %w", eventType.Name(), err),
 						http.StatusBadRequest,
 					)
+					return nil, &cr
 				}
 				args = append(args, event.Elem())
 			}
@@ -221,15 +223,15 @@ func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []b
 	return args, nil
 }
 
-func (c *caller) parseResponse(response []reflect.Value) *callResponse {
-	if len(response) == 0 {
+func (c *caller) parseRspArgs(args []reflect.Value) callResponse {
+	if len(args) == 0 {
 		return callerRsp(nil)
 	}
 	// convert return values into (interface{}, error)
 	var err error
 	var isLastArgError bool
-	if len(response) > 0 {
-		if errVal, ok := response[len(response)-1].Interface().(error); ok {
+	if len(args) > 0 {
+		if errVal, ok := args[len(args)-1].Interface().(error); ok {
 			err = errVal
 			isLastArgError = true
 		}
@@ -237,10 +239,10 @@ func (c *caller) parseResponse(response []reflect.Value) *callResponse {
 	if err != nil {
 		return callerErr(err, http.StatusInternalServerError)
 	}
-	if len(response) == 1 && isLastArgError {
+	if len(args) == 1 && isLastArgError {
 		return callerRsp(nil)
 	}
-	val := response[0].Interface()
+	val := args[0].Interface()
 	if val == nil {
 		return callerRsp(nil)
 	}
