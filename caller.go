@@ -25,13 +25,13 @@ type caller struct {
 	typ   reflect.Type
 }
 
-type callResponse struct {
+type response struct {
 	payload    []byte
 	err        error
 	statusCode int
 }
 
-func (c *callResponse) StatusCode() int {
+func (c *response) StatusCode() int {
 	if c.statusCode != 0 {
 		return c.statusCode
 
@@ -42,29 +42,29 @@ func (c *callResponse) StatusCode() int {
 	return http.StatusOK
 }
 
-func (c *callResponse) Error() string {
+func (c *response) Error() string {
 	if c.err == nil {
 		return ""
 	}
 	return c.err.Error()
 }
 
-func (c *callResponse) Err() error {
+func (c *response) Err() error {
 	return c.err
 }
 
-func (c *callResponse) Body() string {
+func (c *response) Body() string {
 	if c.payload == nil {
 		return ""
 	}
 	return string(c.payload)
 }
 
-func (c *callResponse) Raw() ([]byte, error) {
+func (c *response) Raw() ([]byte, error) {
 	return c.payload, c.err
 }
 
-func (c *callResponse) AsAPIGateway() ([]byte, error) {
+func (c *response) AsAPIGateway() ([]byte, error) {
 	var gwRsp events.APIGatewayProxyResponse
 	gwRsp.StatusCode = c.StatusCode()
 	gwRsp.Body = c.Body()
@@ -79,7 +79,7 @@ func (c *callResponse) AsAPIGateway() ([]byte, error) {
 	return json.Marshal(gwRsp)
 }
 
-func (c *callResponse) AsWS() ([]byte, error) {
+func (c *response) AsWS() ([]byte, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -89,7 +89,7 @@ func (c *callResponse) AsWS() ([]byte, error) {
 	return json.Marshal(gwRsp)
 }
 
-func (c *callResponse) AsStreaming(req Request) (*proto.Message, error) {
+func (c *response) AsStreaming(req Request) (*proto.Message, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
@@ -97,30 +97,30 @@ func (c *callResponse) AsStreaming(req Request) (*proto.Message, error) {
 	return &rm, nil
 }
 
-func callerRsp(payload []byte) callResponse {
+func okResponse(payload []byte) response {
 	if payload == nil {
-		return callResponse{
+		return response{
 			statusCode: http.StatusNoContent,
 		}
 	}
-	return callResponse{
+	return response{
 		payload:    payload,
 		statusCode: http.StatusOK,
 	}
 }
 
-func callerErr(err error, statusCode int) callResponse {
+func errResponse(err error, statusCode int) response {
 	if statusCode == 0 {
 		statusCode = http.StatusServiceUnavailable
 	}
-	return callResponse{
+	return response{
 		statusCode: statusCode,
 		err:        err,
 	}
 }
 
 // Inspiration: https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go
-func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte) callResponse {
+func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte) response {
 	methodName = strings.Replace(strings.ToLower(methodName), "-", "", -1)
 	if methodName == "" {
 		for _, name := range []string{"Invoke", "Root", "Default"} {
@@ -128,7 +128,7 @@ func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte)
 				return c.callMethod(method, ctx, reqPayload)
 			}
 		}
-		return callerErr(
+		return errResponse(
 			fmt.Errorf("can't find Invoke/Root/Default method in %s", c.typ.Name()),
 			http.StatusNotImplemented,
 		)
@@ -141,13 +141,13 @@ func (c *caller) call(ctx context.Context, methodName string, reqPayload []byte)
 		}
 		return c.callMethod(method, ctx, reqPayload)
 	}
-	return callerErr(
+	return errResponse(
 		fmt.Errorf("method %s not found", methodName),
 		http.StatusNotImplemented,
 	)
 }
 
-func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPayload []byte) callResponse {
+func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPayload []byte) response {
 	args, cr := c.args(method, ctx, reqPayload)
 	if cr != nil {
 		return *cr
@@ -160,7 +160,7 @@ func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPaylo
 	return c.parseRspArgs(rspArgs)
 }
 
-func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (rpsArgs []reflect.Value, cr *callResponse) {
+func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (rpsArgs []reflect.Value, cr *response) {
 	defer func() {
 		if r := recover(); r != nil {
 			// log panic stack trace
@@ -169,7 +169,7 @@ func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (rpsAr
 			if logPanic {
 				info("PANIC %s, stack: %s", r, stackTrace)
 			}
-			cErr := callerErr(fmt.Errorf("PANIC %s", r), http.StatusInternalServerError)
+			cErr := errResponse(fmt.Errorf("PANIC %s", r), http.StatusInternalServerError)
 			cr = &cErr
 		}
 	}()
@@ -178,7 +178,7 @@ func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (rpsAr
 	return
 }
 
-func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []byte) ([]reflect.Value, *callResponse) {
+func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []byte) ([]reflect.Value, *response) {
 	numIn := method.Type.NumIn()
 	methodTakesContext := false
 	if numIn > 1 {
@@ -210,7 +210,7 @@ func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []b
 					reqPayload = []byte(`{}`)
 				}
 				if err := json.Unmarshal(reqPayload, event.Interface()); err != nil {
-					cr := callerErr(
+					cr := errResponse(
 						fmt.Errorf("unable to unmarshal request into %s, error: %w", eventType.Name(), err),
 						http.StatusBadRequest,
 					)
@@ -223,9 +223,9 @@ func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []b
 	return args, nil
 }
 
-func (c *caller) parseRspArgs(args []reflect.Value) callResponse {
+func (c *caller) parseRspArgs(args []reflect.Value) response {
 	if len(args) == 0 {
-		return callerRsp(nil)
+		return okResponse(nil)
 	}
 	// convert return values into (interface{}, error)
 	var err error
@@ -237,14 +237,14 @@ func (c *caller) parseRspArgs(args []reflect.Value) callResponse {
 		}
 	}
 	if err != nil {
-		return callerErr(err, http.StatusInternalServerError)
+		return errResponse(err, http.StatusInternalServerError)
 	}
 	if len(args) == 1 && isLastArgError {
-		return callerRsp(nil)
+		return okResponse(nil)
 	}
 	val := args[0].Interface()
 	if val == nil {
-		return callerRsp(nil)
+		return okResponse(nil)
 	}
 
 	var rspPayload []byte
@@ -257,11 +257,11 @@ func (c *caller) parseRspArgs(args []reflect.Value) callResponse {
 		// marshal val
 		rspPayload, err = json.Marshal(val)
 		if err != nil {
-			return callerErr(fmt.Errorf("unable to marshal response, error %w", err), http.StatusServiceUnavailable)
+			return errResponse(fmt.Errorf("unable to marshal response, error %w", err), http.StatusServiceUnavailable)
 		}
 		if len(rspPayload) == 4 && string(rspPayload) == "null" {
-			return callerRsp(nil)
+			return okResponse(nil)
 		}
 	}
-	return callerRsp(rspPayload)
+	return okResponse(rspPayload)
 }

@@ -26,7 +26,7 @@ func LambdaHandler(api interface{}) {
 	lambda.StartHandler(handler)
 }
 
-func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, callResponse) {
+func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, response) {
 	req := parseRequest(payload)
 	reqCtx, lCtx := h.initContext(ctx, req)
 	closeLogs := h.captureLogs(req, lCtx)
@@ -39,7 +39,7 @@ func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, ca
 	return req, rsp
 }
 
-func (h *lambdaHandler) formatResponse(req Request, rsp callResponse) ([]byte, error) {
+func (h *lambdaHandler) formatResponse(req Request, rsp response) ([]byte, error) {
 	switch req.Type {
 	case APIGateway:
 		return rsp.AsAPIGateway()
