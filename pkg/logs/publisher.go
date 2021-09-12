@@ -1,42 +1,14 @@
 package logs
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
 
-	"github.com/mantil-io/mantil.go/pkg/lambdactx"
 	"github.com/mantil-io/mantil.go/pkg/nats"
 )
 
-func CaptureLambda(ctx context.Context) (func(), error) {
-	inbox, ok := LogInboxFromLambdaCtx(ctx)
-	if !ok {
-		return func() {}, nil
-	}
-	return capture(inbox)
-}
-
-func LogInboxFromLambdaCtx(ctx context.Context) (string, bool) {
-	lctx, ok := lambdactx.FromContext(ctx)
-	if !ok {
-		return "", false
-	}
-	agr := lctx.APIGatewayRequest
-	if agr != nil {
-		inbox := agr.Headers[InboxHeaderKey]
-		return inbox, inbox != ""
-	}
-	lambda := lctx.Lambda
-	if lambda != nil {
-		inbox := lambda.ClientContext.Custom[InboxHeaderKey]
-		return inbox, inbox != ""
-	}
-	return "", false
-}
-
-func capture(subject string) (func(), error) {
+func Capture(subject string) (func(), error) {
 	w := newLogWriter()
 	done := make(chan interface{})
 	err := createLogStream(subject, w.ch, done)

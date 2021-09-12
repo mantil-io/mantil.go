@@ -20,11 +20,12 @@ const (
 )
 
 type Request struct {
-	Type   RequestType
-	Method string
-	Body   []byte
-	Raw    []byte
-	attr   requestAttributes
+	Type    RequestType
+	Method  string
+	Body    []byte
+	Raw     []byte
+	Headers map[string]string
+	attr    requestAttributes
 }
 
 type requestAttributes struct {
@@ -38,7 +39,8 @@ type requestAttributes struct {
 		EventType    string                 `json:"eventType"`    // ws: MESSAGE,
 		Protocol     string                 `json:"protocol"`     // HTTP... // postoji samo kod API
 	} `json:"requestContext"`
-	Body string `json:"body"`
+	Headers map[string]string `json:"headers"`
+	Body    string            `json:"body"`
 
 	// streaming
 	ConnectionID string `json:"connectionID"`
@@ -66,6 +68,7 @@ func parseRequest(raw []byte) (req Request) {
 	req.detectType()
 	req.Body = req.body()
 	req.Method = req.method()
+	req.Headers = req.attr.Headers
 	return
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/mantil-io/mantil.go/pkg/logs"
 )
 
 type lambdaHandler struct {
@@ -27,16 +28,24 @@ func LambdaHandler(api interface{}) {
 
 func (h *lambdaHandler) call(ctx context.Context, payload []byte) (Request, *callResponse) {
 	req := parseRequest(payload)
-	reqCtx := h.initContext(ctx, req)
+	reqCtx, lCtx := h.initContext(ctx, req)
+	if logInbox := h.findLogInbox(req, lCtx); logInbox != "" {
+		close, err := logs.Capture(logInbox)
+		if err != nil {
+			info("failed to capture logs %v", err)
+		} else {
+			defer close()
+		}
+	}
 	rsp := h.caller.call(reqCtx, req.Method, req.Body)
+	if err := rsp.Err(); err != nil {
+		info("invoke of method %s failed with error: %v", req.Method, err)
+	}
 	return req, rsp
 }
 
 func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
 	req, rsp := h.call(ctx, payload)
-	if err := rsp.Err(); err != nil {
-		info("invoke of method %s failed with error: %v", req.Method, err)
-	}
 	switch req.Type {
 	case APIGateway:
 		return rsp.AsAPIGateway()
@@ -53,17 +62,28 @@ func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, err
 	}
 }
 
-func (h *lambdaHandler) initContext(ctx context.Context, req Request) context.Context {
+func (h *lambdaHandler) initContext(ctx context.Context, req Request) (context.Context, *lambdacontext.LambdaContext) {
 	h.requestNo++
 	log.SetFlags(0)
 	cv := RequestContext{
 		RequestNo: h.requestNo,
 		Request:   req,
 	}
-	if lc, ok := lambdacontext.FromContext(ctx); ok {
+	lc, ok := lambdacontext.FromContext(ctx)
+	if ok {
 		cv.Lambda = lc
 	}
-	return context.WithValue(ctx, ContextKey, &cv)
+	return context.WithValue(ctx, ContextKey, &cv), lc
+}
+
+func (h *lambdaHandler) findLogInbox(req Request, lc *lambdacontext.LambdaContext) string {
+	if inbox, ok := req.Headers[logs.InboxHeaderKey]; ok {
+		return inbox
+	}
+	if lc != nil {
+		return lc.ClientContext.Custom[logs.InboxHeaderKey]
+	}
+	return ""
 }
 
 type RequestContext struct {
