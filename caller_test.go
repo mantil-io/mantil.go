@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/mantil-io/mantil.go/pkg/proto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -174,29 +175,82 @@ func TestCaller(t *testing.T) {
 			}
 			require.Equal(t, c.statusCode, rsp.StatusCode())
 			require.Equal(t, c.rsp, string(rsp.payload))
-			//t.Logf("\nmethod: %s\nrequest: %s\nresponse: %s\n", c.method, c.req, rsp)
 		}
 	})
 
-	t.Run("lambda api gateway handler", func(t *testing.T) {
+	t.Run("api gateway", func(t *testing.T) {
 		handler := newHandler(api)
-		for _, c := range cases {
+		for i, c := range cases {
 			ctx := context.Background()
-			req := events.APIGatewayProxyRequest{
+			aReq := events.APIGatewayProxyRequest{
+				Path:           "path",
+				HTTPMethod:     "method",
 				PathParameters: map[string]string{"path": c.method},
 				Body:           c.req,
 			}
-			reqPayload, _ := json.Marshal(req)
-			rspPayload, err := handler.processAPIGatewayRequest(ctx, reqPayload)
+			reqPayload, _ := json.Marshal(aReq)
+			_, rspp := handler.call(ctx, reqPayload)
+			rspPayload, err := rspp.AsAPIGateway()
 			require.NoError(t, err)
-			var rsp events.APIGatewayProxyResponse
-			err = json.Unmarshal(rspPayload, &rsp)
-			require.NoError(t, err)
-			require.Equal(t, c.rsp, rsp.Body)
-			require.Equal(t, c.statusCode, rsp.StatusCode)
-			require.Equal(t, c.error, rsp.Headers["x-api-error"])
 
-			//t.Logf("\nmethod: %s\nrequest: %s\nresponse: %s\n", c.method, c.req, rsp.Body)
+			var aRsp events.APIGatewayProxyResponse
+			err = json.Unmarshal(rspPayload, &aRsp)
+			require.NoError(t, err)
+			require.Equal(t, c.rsp, aRsp.Body, "case %d", i)
+			require.Equal(t, c.statusCode, aRsp.StatusCode)
+			require.Equal(t, c.error, aRsp.Headers["x-api-error"])
+		}
+	})
+
+	t.Run("streaming message", func(t *testing.T) {
+		handler := newHandler(api)
+		for i, c := range cases {
+			ctx := context.Background()
+			msg := proto.Message{
+				ConnectionID: "1234567890",
+				Inbox:        "my-inbox",
+				URI:          "api." + c.method,
+				Payload:      []byte(c.req),
+			}
+			reqPayload, _ := json.Marshal(msg)
+			req, rsp := handler.call(ctx, reqPayload)
+			rm, err := rsp.AsStreaming(req)
+			if c.error == "" {
+				require.NoError(t, err, "case %d", i)
+				require.Equal(t, proto.Response, rm.Type)
+				require.Equal(t, msg.ConnectionID, rm.ConnectionID)
+				require.Equal(t, msg.Inbox, rm.Inbox)
+				require.Equal(t, msg.URI, rm.URI)
+				require.Equal(t, c.rsp, string(rm.Payload))
+			} else {
+				require.Equal(t, err.Error(), c.error)
+			}
+		}
+	})
+
+	t.Run("raw message", func(t *testing.T) {
+		handler := newHandler(api)
+		for i, c := range cases {
+			if i == 2 || i == 9 {
+				continue
+			}
+			ctx := context.Background()
+			msg := struct {
+				URI  string
+				Body string
+			}{
+				URI:  c.method,
+				Body: c.req,
+			}
+			reqPayload, _ := json.Marshal(msg)
+			_, rsp := handler.call(ctx, reqPayload)
+			rspPayload, err := rsp.Raw()
+			if c.error == "" {
+				require.NoError(t, err, "case %d", i)
+				require.Equal(t, c.rsp, string(rspPayload), "case %d", i)
+			} else {
+				require.Equal(t, err, c.error, "case %d", i)
+			}
 		}
 	})
 

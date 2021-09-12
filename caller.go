@@ -9,7 +9,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/mantil-io/mantil.go/pkg/logs"
+	"github.com/mantil-io/mantil.go/pkg/proto"
 )
 
 func newCaller(i interface{}) *caller {
@@ -48,6 +50,10 @@ func (c *callResponse) Error() string {
 	return c.err.Error()
 }
 
+func (c *callResponse) Err() error {
+	return c.err
+}
+
 func (c *callResponse) Body() string {
 	if c.payload == nil {
 		return ""
@@ -57,6 +63,39 @@ func (c *callResponse) Body() string {
 
 func (c *callResponse) Raw() ([]byte, error) {
 	return c.payload, c.err
+}
+
+func (c *callResponse) AsAPIGateway() ([]byte, error) {
+	var gwRsp events.APIGatewayProxyResponse
+	gwRsp.StatusCode = c.StatusCode()
+	gwRsp.Body = c.Body()
+
+	hdrs := make(map[string]string)
+	hdrs["Access-Control-Allow-Origin"] = "*"
+	if e := c.Error(); e != "" {
+		hdrs["x-api-error"] = e
+	}
+	gwRsp.Headers = hdrs
+
+	return json.Marshal(gwRsp)
+}
+
+func (c *callResponse) AsWS() ([]byte, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	gwRsp := events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+	}
+	return json.Marshal(gwRsp)
+}
+
+func (c *callResponse) AsStreaming(req Request) (*proto.Message, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	rm := req.ToStreamingResponse(c.payload)
+	return &rm, nil
 }
 
 func callerRsp(payload []byte) *callResponse {
