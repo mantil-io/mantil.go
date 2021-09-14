@@ -50,14 +50,6 @@ func newPublisher(backend publisherBackend) *publisher {
 	}
 }
 
-func (p *publisher) Capture() (func(), error) {
-	go p.loop()
-	return func() {
-		p.writer.close()
-		<-p.done
-	}, nil
-}
-
 func (p *publisher) loop() {
 	for msg := range p.writer.ch {
 		lm := &LogMessage{
