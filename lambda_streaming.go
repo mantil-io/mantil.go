@@ -35,12 +35,12 @@ func toStreamingSqs(m *proto.Message, groupId string) error {
 		}
 	}
 
-	mp, err := m.ToProto()
+	body, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
 	_, err = sqsClient.SendMessage(context.Background(), &sqs.SendMessageInput{
-		MessageBody:    aws.String(string(mp)),
+		MessageBody:    aws.String(string(body)),
 		QueueUrl:       streamingQueueUrl,
 		MessageGroupId: aws.String(groupId),
 	})
