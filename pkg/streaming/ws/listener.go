@@ -39,7 +39,7 @@ func (l *Listener) subscribe(subject string) error {
 		Type:     proto.Subscribe,
 		Subjects: []string{subject},
 	}
-	mp, err := m.ToProto()
+	mp, err := m.Encode()
 	if err != nil {
 		return err
 	}

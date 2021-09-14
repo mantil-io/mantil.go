@@ -40,22 +40,27 @@ var MessageKeys = []string{
 	"payload",
 }
 
-func (m *Message) ToProto() ([]byte, error) {
+func (m *Message) Encode() ([]byte, error) {
+	if err := m.validate(); err != nil {
+		return nil, err
+	}
+	payload := m.Payload
+	if payload == nil {
+		payload = []byte{}
+	}
 	var mp []byte
 	var err error
 	switch m.Type {
-	case Subscribe:
-		mp, err = m.toProtoSub()
-	case Unsubscribe:
-		mp, err = m.toProtoUnsub()
-	case Request:
-		mp, err = m.toProtoReq()
-	case Response:
-		mp, err = m.toProtoRsp()
+	case Subscribe, Unsubscribe:
+		mp, err = encode(m.Type, nil, m.Subjects...)
+	case Request, Response:
+		if m.ConnectionID != "" {
+			mp, err = encode(m.Type, payload, m.ConnectionID, m.URI, m.Inbox)
+		} else {
+			mp, err = encode(m.Type, payload, m.URI, m.Inbox)
+		}
 	case Publish:
-		mp, err = m.toProtoPub()
-	default:
-		err = fmt.Errorf("unknown message type")
+		mp, err = encode(m.Type, payload, m.Subject)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not create protocol message - %v", err)
@@ -63,78 +68,62 @@ func (m *Message) ToProto() ([]byte, error) {
 	return mp, nil
 }
 
-func (m *Message) toProtoSub() ([]byte, error) {
-	mp := string(Subscribe)
-	if len(m.Subjects) == 0 {
-		return nil, fmt.Errorf("at least one subject is required")
+func (m *Message) validate() error {
+	switch m.Type {
+	case Subscribe, Unsubscribe:
+		if len(m.Subjects) == 0 {
+			return fmt.Errorf("at least one subject is required")
+		}
+	case Request, Response:
+		if m.URI == "" {
+			return fmt.Errorf("URI is required")
+		}
+		if m.Inbox == "" {
+			return fmt.Errorf("inbox is required")
+		}
+	case Publish:
+		if m.Subject == "" {
+			return fmt.Errorf("subject is required")
+		}
+	default:
+		return fmt.Errorf("unknown message type")
 	}
-	for _, s := range m.Subjects {
-		mp += " " + s
-	}
-	mp += "\n"
-	return []byte(mp), nil
+	return nil
 }
 
-func (m *Message) toProtoUnsub() ([]byte, error) {
-	mp := string(Unsubscribe)
-	if len(m.Subjects) == 0 {
-		return nil, fmt.Errorf("at least one subject is required")
+func encode(mtype MessageType, payload []byte, attrs ...string) ([]byte, error) {
+	var sb strings.Builder
+	sb.WriteString(string(mtype))
+	separator := " "
+	write := func(s string) error {
+		if _, err := sb.WriteString(separator); err != nil {
+			return err
+		}
+		if _, err := sb.WriteString(s); err != nil {
+			return err
+		}
+		return nil
 	}
-	for _, s := range m.Subjects {
-		mp += " " + s
+	for _, a := range attrs {
+		if err := write(a); err != nil {
+			return nil, err
+		}
 	}
-	mp += "\n"
-	return []byte(mp), nil
-}
-
-func (m *Message) toProtoReq() ([]byte, error) {
-	mp := string(Request + " ")
-	if m.ConnectionID != "" {
-		mp += m.ConnectionID + " "
+	if payload != nil {
+		ps := strconv.Itoa(len(payload))
+		if err := write(ps); err != nil {
+			return nil, err
+		}
 	}
-	if m.URI == "" {
-		return nil, fmt.Errorf("URI is required")
+	if _, err := sb.WriteString("\n"); err != nil {
+		return nil, err
 	}
-	mp += m.URI + " "
-	if m.Inbox == "" {
-		return nil, fmt.Errorf("inbox is required")
+	if payload != nil {
+		if _, err := sb.Write(payload); err != nil {
+			return nil, err
+		}
 	}
-	mp += m.Inbox + " "
-	mp += strconv.Itoa(len(m.Payload))
-	mp += "\n"
-	mp += string(m.Payload)
-	return []byte(mp), nil
-}
-
-func (m *Message) toProtoRsp() ([]byte, error) {
-	mp := string(Response + " ")
-	if m.ConnectionID != "" {
-		mp += m.ConnectionID + " "
-	}
-	if m.URI == "" {
-		return nil, fmt.Errorf("URI is required")
-	}
-	mp += m.URI + " "
-	if m.Inbox == "" {
-		return nil, fmt.Errorf("inbox is required")
-	}
-	mp += m.Inbox + " "
-	mp += strconv.Itoa(len(m.Payload))
-	mp += "\n"
-	mp += string(m.Payload)
-	return []byte(mp), nil
-}
-
-func (m *Message) toProtoPub() ([]byte, error) {
-	mp := string(Publish + " ")
-	if m.Subject == "" {
-		return nil, fmt.Errorf("subject is required")
-	}
-	mp += m.Subject + " "
-	mp += strconv.Itoa(len(m.Payload))
-	mp += "\n"
-	mp += string(m.Payload)
-	return []byte(mp), nil
+	return []byte(sb.String()), nil
 }
 
 func ParseMessage(buf []byte) (*Message, error) {

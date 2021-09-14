@@ -1,9 +1,6 @@
 package proto
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -136,69 +133,12 @@ func TestProto(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		mp, err := c.msg.ToProto()
+		mp, err := c.msg.Encode()
 		assert.Nil(t, err)
 		assert.Equal(t, c.protoMsg, string(mp))
 
 		m, err := ParseMessage([]byte(c.protoMsg))
 		assert.Nil(t, err)
 		assert.Equal(t, c.msg, m)
-	}
-}
-
-func toProtoRsp2(m *Message) ([]byte, error) {
-	if m.URI == "" {
-		return nil, fmt.Errorf("URI is required")
-	}
-	if m.Inbox == "" {
-		return nil, fmt.Errorf("inbox is required")
-	}
-
-	var sb strings.Builder
-	sb.WriteString(string(Response))
-	sb.WriteString(" ")
-	if m.ConnectionID != "" {
-		sb.WriteString(m.ConnectionID)
-		sb.WriteString(" ")
-	}
-	sb.WriteString(m.URI)
-	sb.WriteString(" ")
-	sb.WriteString(m.Inbox)
-	sb.WriteString(" ")
-	sb.WriteString(strconv.Itoa(len(m.Payload)))
-	sb.WriteString("\n")
-	return append([]byte(sb.String()), m.Payload...), nil
-}
-
-var benchMsg = Message{
-	Type:         Response,
-	ConnectionID: "connectionId",
-	URI:          "api.method",
-	Inbox:        "inbox",
-	Payload:      []byte("multiline\npayload"),
-}
-
-func TestToProtoRsp2(t *testing.T) {
-	m1, err := benchMsg.toProtoRsp()
-	assert.Nil(t, err)
-	m2, err := toProtoRsp2(&benchMsg)
-	assert.Equal(t, m1, m2)
-}
-
-func BenchmarkToProtoRsp(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		_, err := benchMsg.toProtoRsp()
-		if err != nil {
-			b.Fail()
-		}
-	}
-}
-
-func BenchmarkToProtoRsp2(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		_, err := toProtoRsp2(&benchMsg)
-		if err != nil {
-			b.Fail()
-		}
 	}
 }
