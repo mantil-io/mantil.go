@@ -47,12 +47,12 @@ func (p *Publisher) Pub(i interface{}) error {
 		Subject: p.subject,
 		Payload: payload,
 	}
-	mp, err := m.ToProto()
+	buf, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
 	_, err = p.client.SendMessage(context.Background(), &sqs.SendMessageInput{
-		MessageBody:    aws.String(string(mp)),
+		MessageBody:    aws.String(string(buf)),
 		QueueUrl:       aws.String(p.queueURL),
 		MessageGroupId: aws.String(p.subject),
 	})
