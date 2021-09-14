@@ -13,7 +13,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.4.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.9.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.5.0
-	github.com/buger/jsonparser v1.1.1
+	github.com/google/uuid v1.3.0
+	github.com/gorilla/websocket v1.4.2
 	github.com/nats-io/jsm.go v0.0.24
 	github.com/nats-io/nats.go v1.11.0
 	github.com/nats-io/nkeys v0.3.0

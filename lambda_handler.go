@@ -7,7 +7,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/mantil-io/mantil.go/pkg/logs"
+	"github.com/mantil-io/mantil.go/pkg/streaming/logs"
 )
 
 type lambdaHandler struct {
@@ -75,8 +75,15 @@ func (h *lambdaHandler) initContext(ctx context.Context, req Request) (context.C
 }
 
 func (h *lambdaHandler) captureLogs(req Request, lCtx *lambdacontext.LambdaContext) func() {
-	if logInbox := h.findLogInbox(req, lCtx); logInbox != "" {
-		close, err := logs.Capture(logInbox)
+	if logInbox := h.findHeader(logs.InboxHeaderKey, req, lCtx); logInbox != "" {
+		streamingType := h.findHeader(logs.StreamingTypeHeaderKey, req, lCtx)
+		var close func()
+		var err error
+		if streamingType == logs.StreamingTypeNATS {
+			close, err = logs.CaptureNATS(logInbox)
+		} else if streamingType == logs.StreamingTypeWs {
+			close, err = logs.Capture(logInbox)
+		}
 		if err != nil {
 			info("failed to capture logs %v", err)
 		}
@@ -87,12 +94,12 @@ func (h *lambdaHandler) captureLogs(req Request, lCtx *lambdacontext.LambdaConte
 	return func() {}
 }
 
-func (h *lambdaHandler) findLogInbox(req Request, lc *lambdacontext.LambdaContext) string {
-	if inbox, ok := req.Headers[logs.InboxHeaderKey]; ok {
-		return inbox
+func (h *lambdaHandler) findHeader(key string, req Request, lc *lambdacontext.LambdaContext) string {
+	if val, ok := req.Headers[key]; ok {
+		return val
 	}
 	if lc != nil {
-		return lc.ClientContext.Custom[logs.InboxHeaderKey]
+		return lc.ClientContext.Custom[key]
 	}
 	return ""
 }
