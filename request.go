@@ -1,6 +1,7 @@
 package mantil
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"strings"
 
@@ -39,8 +40,9 @@ type requestAttributes struct {
 		EventType    string                 `json:"eventType"`    // ws: MESSAGE,
 		Protocol     string                 `json:"protocol"`     // HTTP... // postoji samo kod API
 	} `json:"requestContext"`
-	Headers map[string]string `json:"headers"`
-	Body    string            `json:"body"`
+	Headers         map[string]string `json:"headers"`
+	Body            string            `json:"body"`
+	IsBase64Encoded bool              `json:"isBase64Encoded"`
 
 	// streaming
 	ConnectionID string `json:"connectionID"`
@@ -118,7 +120,7 @@ func (r *Request) methods() []string {
 
 func (r *Request) method() string {
 	if r.Type == APIGateway {
-		return r.attr.PathParameters["path"]
+		return r.attr.PathParameters["proxy"]
 	}
 	if r.attr.URI != "" {
 		uriParts := strings.Split(r.attr.URI, ".")
@@ -132,7 +134,11 @@ func (r *Request) method() string {
 
 func (r *Request) body() []byte {
 	if len(r.attr.Body) > 0 {
-		return []byte(r.attr.Body)
+		var b = []byte(r.attr.Body)
+		if r.attr.IsBase64Encoded {
+			b, _ = base64.StdEncoding.DecodeString(r.attr.Body)
+		}
+		return b
 	}
 	if len(r.attr.Payload) > 0 {
 		return r.attr.Payload
