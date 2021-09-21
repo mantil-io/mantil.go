@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/mantil-io/mantil.go/pkg/proto"
@@ -12,8 +13,8 @@ type Listener struct {
 	conn *websocket.Conn
 }
 
-func NewListener(url string) (*Listener, error) {
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+func NewListener(url string, requestHeader http.Header) (*Listener, error) {
+	conn, _, err := websocket.DefaultDialer.Dial(url, requestHeader)
 	if err != nil {
 		return nil, err
 	}

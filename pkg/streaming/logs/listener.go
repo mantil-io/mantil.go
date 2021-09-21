@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
 	"sync"
 
 	"github.com/google/uuid"
@@ -23,8 +24,8 @@ type Listener struct {
 	wg      *sync.WaitGroup
 }
 
-func NewListener(wsURL string) (*Listener, error) {
-	b, err := ws.NewListener(wsURL)
+func NewListener(wsURL string, requestHeader http.Header) (*Listener, error) {
+	b, err := ws.NewListener(wsURL, requestHeader)
 	if err != nil {
 		return nil, err
 	}
