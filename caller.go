@@ -77,7 +77,7 @@ func (c *response) AsAPIGateway() ([]byte, error) {
 	}
 	// try to set right content types
 	if len(body) > 1 && (strings.HasPrefix(body, "{") || strings.HasPrefix(body, "[")) {
-		hdrs["ContentType"] = "application/json"
+		hdrs["Content-Type"] = "application/json"
 	}
 	gwRsp.Headers = hdrs
 
