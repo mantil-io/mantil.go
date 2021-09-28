@@ -67,12 +67,17 @@ func (c *response) Raw() ([]byte, error) {
 func (c *response) AsAPIGateway() ([]byte, error) {
 	var gwRsp events.APIGatewayProxyResponse
 	gwRsp.StatusCode = c.StatusCode()
-	gwRsp.Body = c.Body()
+	body := c.Body()
+	gwRsp.Body = body
 
 	hdrs := make(map[string]string)
 	hdrs["Access-Control-Allow-Origin"] = "*"
 	if e := c.Error(); e != "" {
 		hdrs["x-api-error"] = e
+	}
+	// try to set right content types
+	if len(body) > 1 && (strings.HasPrefix(body, "{") || strings.HasPrefix(body, "[")) {
+		hdrs["ContentType"] = "application/json"
 	}
 	gwRsp.Headers = hdrs
 
