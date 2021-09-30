@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"time"
 
@@ -73,6 +74,21 @@ func (k *KV) createTable() error {
 		TableName:   aws.String(k.tableName),
 		BillingMode: types.BillingModePayPerRequest,
 	}
+
+	tags := []types.Tag{}
+	if val, ok := os.LookupEnv(EnvProjectName); ok {
+		tags = append(tags, types.Tag{
+			Key:   aws.String(EnvProjectName),
+			Value: aws.String(val),
+		})
+	}
+	if val, ok := os.LookupEnv(EnvStageName); ok {
+		tags = append(tags, types.Tag{
+			Key:   aws.String(EnvStageName),
+			Value: aws.String(val),
+		})
+	}
+	input.Tags = tags
 
 	_, err := k.svc.CreateTable(context.TODO(), input)
 	if err != nil {
