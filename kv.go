@@ -76,17 +76,13 @@ func (k *KV) createTable() error {
 	}
 
 	tags := []types.Tag{}
-	if val, ok := os.LookupEnv(EnvProjectName); ok {
-		tags = append(tags, types.Tag{
-			Key:   aws.String(EnvProjectName),
-			Value: aws.String(val),
-		})
-	}
-	if val, ok := os.LookupEnv(EnvStageName); ok {
-		tags = append(tags, types.Tag{
-			Key:   aws.String(EnvStageName),
-			Value: aws.String(val),
-		})
+	for _, et := range defaultConfig.EnvTags() {
+		if val, ok := os.LookupEnv(et); ok {
+			tags = append(tags, types.Tag{
+				Key:   aws.String(et),
+				Value: aws.String(val),
+			})
+		}
 	}
 	input.Tags = tags
 

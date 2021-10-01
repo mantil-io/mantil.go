@@ -11,6 +11,7 @@ const (
 	EnvProjectName = "MANTIL_PROJECT_NAME"
 	EnvStageName   = "MANTIL_STAGE_NAME"
 	EnvKVTableName = "MANTIL_KV_TABLE_NAME"
+	EnvMantilTags  = "MANTIL_ENV_TAGS"
 )
 
 var mantilEnvVars = []string{EnvProjectName, EnvStageName, EnvKVTableName}
@@ -81,4 +82,13 @@ func (c *Config) username() string {
 		return "anonymous"
 	}
 	return user.Username
+}
+
+// EnvTags returns list of the env variables that should be added as tags to all newly created resources
+func (c *Config) EnvTags() []string {
+	val, ok := os.LookupEnv(EnvMantilTags)
+	if !ok {
+		return []string{}
+	}
+	return strings.Split(val, ",")
 }
