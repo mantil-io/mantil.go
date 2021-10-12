@@ -26,6 +26,7 @@ type caller struct {
 }
 
 type response struct {
+	value      interface{}
 	payload    []byte
 	err        error
 	statusCode int
@@ -51,6 +52,10 @@ func (c *response) Error() string {
 
 func (c *response) Err() error {
 	return c.err
+}
+
+func (c *response) Value() interface{} {
+	return c.value
 }
 
 func (c *response) Body() string {
@@ -102,13 +107,18 @@ func (c *response) AsStreaming(req Request) (*proto.Message, error) {
 	return &rm, nil
 }
 
-func okResponse(payload []byte) response {
+func okEmptyResponse() response {
+	return okResponse(nil, nil)
+}
+
+func okResponse(payload []byte, val interface{}) response {
 	if payload == nil {
 		return response{
 			statusCode: http.StatusNoContent,
 		}
 	}
 	return response{
+		value:      val,
 		payload:    payload,
 		statusCode: http.StatusOK,
 	}
@@ -232,7 +242,7 @@ func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []b
 
 func (c *caller) parseRspArgs(args []reflect.Value) response {
 	if len(args) == 0 {
-		return okResponse(nil)
+		return okEmptyResponse()
 	}
 	// convert return values into (interface{}, error)
 	var err error
@@ -247,11 +257,11 @@ func (c *caller) parseRspArgs(args []reflect.Value) response {
 		return errResponse(err, http.StatusInternalServerError)
 	}
 	if len(args) == 1 && isLastArgError {
-		return okResponse(nil)
+		return okEmptyResponse()
 	}
 	val := args[0].Interface()
 	if val == nil {
-		return okResponse(nil)
+		return okEmptyResponse()
 	}
 
 	var rspPayload []byte
@@ -267,8 +277,8 @@ func (c *caller) parseRspArgs(args []reflect.Value) response {
 			return errResponse(fmt.Errorf("unable to marshal response, error %w", err), http.StatusServiceUnavailable)
 		}
 		if len(rspPayload) == 4 && string(rspPayload) == "null" {
-			return okResponse(nil)
+			return okEmptyResponse()
 		}
 	}
-	return okResponse(rspPayload)
+	return okResponse(rspPayload, val)
 }
