@@ -186,7 +186,7 @@ func TestCaller(t *testing.T) {
 			aReq := events.APIGatewayProxyRequest{
 				Path:           "path",
 				HTTPMethod:     "method",
-				PathParameters: map[string]string{"path": c.method},
+				PathParameters: map[string]string{"proxy": c.method},
 				Body:           c.req,
 			}
 			reqPayload, _ := json.Marshal(aReq)
