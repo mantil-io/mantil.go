@@ -26,6 +26,20 @@ func TestLambdaInvokeOneResponse(t *testing.T) {
 	t.Logf("response: %s", rsp)
 }
 
+func TestLambdaInvokeNilResponse(t *testing.T) {
+	ll, err := NewLambdaListener()
+	require.NoError(t, err)
+
+	go func() {
+		cb, err := LambdaResponse(ll.Headers())
+		require.NoError(t, err)
+		cb(nil, nil)
+	}()
+
+	rsp, err := ll.RawResponse(context.Background())
+	require.Nil(t, rsp)
+}
+
 func TestLambdaInvokeError(t *testing.T) {
 	ll, err := NewLambdaListener()
 	require.NoError(t, err)

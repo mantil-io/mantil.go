@@ -63,6 +63,10 @@ func (i *invoke) response(rsp interface{}, err error) {
 }
 
 func (i *invoke) publishResponse(rsp interface{}) {
+	if rsp == nil {
+		i.pub.raw(i.responseInbox, nil)
+		return
+	}
 	switch v := rsp.(type) {
 	case []byte:
 		i.pub.raw(i.responseInbox, v)
@@ -199,6 +203,9 @@ func (l *LambdaListener) Response(ctx context.Context, o interface{}) error {
 	buf, err := l.RawResponse(ctx)
 	if err != nil {
 		return err
+	}
+	if buf == nil {
+		return nil
 	}
 	return json.Unmarshal(buf, o)
 }
