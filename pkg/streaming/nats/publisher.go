@@ -48,3 +48,48 @@ func (p *Publisher) Close() error {
 	p.drainWg.Wait()
 	return nil
 }
+
+func (p *Publisher) raw(subject string, buf []byte) error {
+	return p.nc.Publish(subject, buf)
+}
+
+func (p *Publisher) rawWithContinuation(subject string, buf []byte, isLast bool) error {
+	m := nats.NewMsg(subject)
+	m.Data = buf
+	if !isLast { // set continuation header
+		m.Header.Set(contKey, contValue)
+	}
+	return p.nc.PublishMsg(m)
+}
+
+func (p *Publisher) error(subject string, err error) error {
+	m := nats.NewMsg(subject)
+	m.Header.Set(errorKey, err.Error())
+	return p.nc.PublishMsg(m)
+}
+
+const (
+	contKey   = "cont"
+	contValue = "1"
+	errorKey  = "error"
+)
+
+func isContinuation(nm *nats.Msg) bool {
+	return nm.Header.Get(contKey) == contValue
+}
+
+func asError(nm *nats.Msg) error {
+	msg := nm.Header.Get(errorKey)
+	if msg == "" {
+		return nil
+	}
+	return &ErrRemoteError{msg: msg}
+}
+
+type ErrRemoteError struct {
+	msg string
+}
+
+func (e *ErrRemoteError) Error() string {
+	return e.msg
+}
