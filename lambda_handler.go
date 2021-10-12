@@ -85,6 +85,9 @@ func (h *lambdaHandler) initContext(ctx context.Context, req *Request) context.C
 		cv.Lambda = lc
 		// move custom headers to request
 		if custom := lc.ClientContext.Custom; len(custom) > 0 {
+			if req.Headers == nil {
+				req.Headers = make(map[string]string)
+			}
 			for k, v := range lc.ClientContext.Custom {
 				req.Headers[k] = v
 			}
