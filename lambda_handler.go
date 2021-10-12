@@ -28,9 +28,13 @@ func LambdaHandler(api interface{}) {
 
 func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, response) {
 	req := parseRequest(payload)
-	reqCtx, lCtx := h.initContext(ctx, req)
-	closeLogs := h.captureLogs(req, lCtx)
-	defer closeLogs()
+	reqCtx := h.initContext(ctx, &req)
+
+	if closeLogs, err := logs.Capture(req.Headers); err != nil {
+		info("failed to capture logs %v", err)
+	} else if closeLogs != nil {
+		defer closeLogs()
+	}
 
 	rsp := h.caller.call(reqCtx, req.Body, req.Methods...)
 	if err := rsp.Err(); err != nil {
@@ -60,48 +64,25 @@ func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, err
 	return h.formatResponse(h.invoke(ctx, payload))
 }
 
-func (h *lambdaHandler) initContext(ctx context.Context, req Request) (context.Context, *lambdacontext.LambdaContext) {
+func (h *lambdaHandler) initContext(ctx context.Context, req *Request) context.Context {
 	h.requestNo++
 	log.SetFlags(0)
 	cv := RequestContext{
 		RequestNo: h.requestNo,
-		Request:   req,
+		Request:   *req,
 	}
 	lc, ok := lambdacontext.FromContext(ctx)
 	if ok {
 		cv.Lambda = lc
-	}
-	return context.WithValue(ctx, ContextKey, &cv), lc
-}
-
-func (h *lambdaHandler) captureLogs(req Request, lCtx *lambdacontext.LambdaContext) func() {
-	if logInbox := h.findHeader(logs.InboxHeaderKey, req, lCtx); logInbox != "" {
-		streamingType := h.findHeader(logs.StreamingTypeHeaderKey, req, lCtx)
-		var close func()
-		var err error
-		if streamingType == logs.StreamingTypeNATS {
-			close, err = logs.CaptureNATS(logInbox)
-		} else if streamingType == logs.StreamingTypeWs {
-			close, err = logs.Capture(logInbox)
-		}
-		if err != nil {
-			info("failed to capture logs %v", err)
-		}
-		if close != nil {
-			return close
+		// move custom headers to request
+		if custom := lc.ClientContext.Custom; len(custom) > 0 {
+			for k, v := range lc.ClientContext.Custom {
+				req.Headers[k] = v
+			}
+			cv.Request = *req
 		}
 	}
-	return func() {}
-}
-
-func (h *lambdaHandler) findHeader(key string, req Request, lc *lambdacontext.LambdaContext) string {
-	if val, ok := req.Headers[key]; ok {
-		return val
-	}
-	if lc != nil {
-		return lc.ClientContext.Custom[key]
-	}
-	return ""
+	return context.WithValue(ctx, ContextKey, &cv)
 }
 
 type RequestContext struct {

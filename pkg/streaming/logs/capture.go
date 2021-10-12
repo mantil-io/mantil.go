@@ -19,25 +19,37 @@ type publisher struct {
 	done    chan interface{}
 }
 
-func Capture(subject string) (func(), error) {
+func Capture(headers map[string]string) (func(), error) {
+	if logInbox, ok := headers[InboxHeaderKey]; ok {
+		switch headers[StreamingTypeHeaderKey] {
+		case StreamingTypeNATS:
+			return captureNATS(logInbox)
+		case StreamingTypeWs:
+			return captureWS(logInbox)
+		}
+	}
+	return nil, nil
+}
+
+func captureWS(subject string) (func(), error) {
 	wp, err := ws.NewPublisher(subject)
 	if err != nil {
 		return nil, err
 	}
 	p := newPublisher(wp)
-	return capture(p), nil
+	return closeCallback(p), nil
 }
 
-func CaptureNATS(subject string) (func(), error) {
+func captureNATS(subject string) (func(), error) {
 	np, err := nats.NewPublisher(subject)
 	if err != nil {
 		return nil, err
 	}
 	p := newPublisher(np)
-	return capture(p), nil
+	return closeCallback(p), nil
 }
 
-func capture(p *publisher) func() {
+func closeCallback(p *publisher) func() {
 	go p.loop()
 	return p.Wait
 }
