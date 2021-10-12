@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/mantil-io/mantil.go/pkg/streaming/logs"
+	"github.com/mantil-io/mantil.go/pkg/streaming/nats"
 )
 
 type lambdaHandler struct {
@@ -36,9 +37,17 @@ func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, re
 		defer closeLogs()
 	}
 
+	cb, err := nats.LambdaResponse(req.Headers)
+	if err != nil {
+		info("failed to start nats lambda response: %v", err)
+	}
+
 	rsp := h.caller.call(reqCtx, req.Body, req.Methods...)
 	if err := rsp.Err(); err != nil {
 		info("invoke of method %v failed with error: %v", req.Methods, err)
+	}
+	if cb != nil {
+		cb(rsp.Value(), rsp.Err())
 	}
 	return req, rsp
 }
