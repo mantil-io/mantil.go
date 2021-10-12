@@ -207,6 +207,9 @@ func (l *LambdaListener) Response(ctx context.Context, o interface{}) error {
 	if buf == nil {
 		return nil
 	}
+	if len(buf) == 0 {
+		return nil
+	}
 	return json.Unmarshal(buf, o)
 }
 
