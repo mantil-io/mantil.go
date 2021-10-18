@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"time"
 
@@ -76,13 +75,11 @@ func (k *KV) createTable() error {
 	}
 
 	tags := []types.Tag{}
-	for _, et := range defaultConfig.EnvTags() {
-		if val, ok := os.LookupEnv(et); ok {
-			tags = append(tags, types.Tag{
-				Key:   aws.String(et),
-				Value: aws.String(val),
-			})
-		}
+	for k, v := range defaultConfig.ResourceTags() {
+		tags = append(tags, types.Tag{
+			Key:   aws.String(k),
+			Value: aws.String(v),
+		})
 	}
 	input.Tags = tags
 

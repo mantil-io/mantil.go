@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,6 +18,7 @@ func TestConfig(t *testing.T) {
 	}
 
 	t.Run("", testKvTableName)
+	t.Run("", testResourceTags)
 
 	// reset env for other thests
 	for k, v := range currentEnv {
@@ -57,6 +59,20 @@ func testKvTableName(t *testing.T) {
 	require.Equal(t, expected, "project1-dev-kv")
 
 	os.Args[0] = args0
+}
+
+func testResourceTags(t *testing.T) {
+	os.Setenv(EnvProjectName, "project")
+	os.Setenv(EnvStageName, "stage")
+	os.Setenv("test", "test")
+
+	tags := defaultConfig.ResourceTags()
+	assert.Len(t, tags, 2)
+	assert.Contains(t, tags, EnvProjectName)
+	assert.Contains(t, tags, EnvStageName)
+	assert.NotContains(t, tags, "test")
+
+	os.Unsetenv("test")
 }
 
 func TestMain(m *testing.M) {

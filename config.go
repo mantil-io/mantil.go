@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	EnvProjectName = "MANTIL_PROJECT_NAME"
-	EnvStageName   = "MANTIL_STAGE_NAME"
-	EnvKVTableName = "MANTIL_KV_TABLE_NAME"
-	EnvMantilTags  = "MANTIL_ENV_TAGS"
+	EnvProjectName = "MANTIL_PROJECT"
+	EnvStageName   = "MANTIL_STAGE"
+	EnvKVTableName = "MANTIL_KV_TABLE"
+	EnvTagPrefix   = "MANTIL"
 )
 
 var mantilEnvVars = []string{EnvProjectName, EnvStageName, EnvKVTableName}
@@ -84,11 +84,17 @@ func (c *Config) username() string {
 	return user.Username
 }
 
-// EnvTags returns list of the env variables that should be added as tags to all newly created resources
-func (c *Config) EnvTags() []string {
-	val, ok := os.LookupEnv(EnvMantilTags)
-	if !ok {
-		return []string{}
+// ResourceTags returns list of all tags that should be added to newly created resources
+// which is all env variables with EnvTagPrefix prefix
+func (c *Config) ResourceTags() map[string]string {
+	tags := map[string]string{}
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, EnvTagPrefix) {
+			continue
+		}
+		pair := strings.SplitN(e, "=", 2)
+		t, v := pair[0], pair[1]
+		tags[t] = v
 	}
-	return strings.Split(val, ",")
+	return tags
 }
