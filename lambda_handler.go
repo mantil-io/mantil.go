@@ -7,7 +7,6 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/mantil-io/mantil.go/pkg/streaming/logs"
 	"github.com/mantil-io/mantil.go/pkg/streaming/nats"
 )
 
@@ -30,12 +29,6 @@ func LambdaHandler(api interface{}) {
 func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, response) {
 	req := parseRequest(payload)
 	reqCtx := h.initContext(ctx, &req)
-
-	if closeLogs, err := logs.Capture(req.Headers); err != nil {
-		info("failed to capture logs %v", err)
-	} else if closeLogs != nil {
-		defer closeLogs()
-	}
 
 	cb, err := nats.LambdaResponse(req.Headers)
 	if err != nil {
