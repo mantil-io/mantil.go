@@ -73,7 +73,7 @@
     "queryStringParameters": null,
     "multiValueQueryStringParameters": null,
     "pathParameters": {
-      "path": "MethodName"
+      "proxy": "MethodName"
     },
     "stageVariables": null,
     "requestContext": {
