@@ -2,7 +2,6 @@ package mantil
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -54,7 +53,7 @@ func (h *lambdaHandler) formatResponse(req Request, rsp response) ([]byte, error
 		if err != nil {
 			return nil, err
 		}
-		return nil, toStreamingSqs(rm, fmt.Sprintf("%s-%s", rm.ConnectionID, rm.Inbox))
+		return nil, toWsForwarder(rm)
 	case WSConnect, WSDisconnect, WSMessage:
 		return rsp.AsWS()
 	default:
