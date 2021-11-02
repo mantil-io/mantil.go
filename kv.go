@@ -26,7 +26,7 @@ type KV struct {
 }
 
 func NewKV(partition string) (*KV, error) {
-	tn, err := defaultConfig.KvTableName()
+	tn, err := mantilConfig.KvTableName()
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (k *KV) createTable() error {
 	}
 
 	tags := []types.Tag{}
-	for k, v := range defaultConfig.ResourceTags() {
+	for k, v := range mantilConfig.ResourceTags {
 		tags = append(tags, types.Tag{
 			Key:   aws.String(k),
 			Value: aws.String(v),

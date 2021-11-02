@@ -2,13 +2,8 @@ package mantil
 
 import (
 	"encoding/json"
-	"os"
 
 	"github.com/mantil-io/mantil.go/pkg/proto"
-)
-
-const (
-	EnvWsForwarder = "MANTIL_STAGE_WS_FORWARDER"
 )
 
 func Publish(subject string, payload interface{}) error {
@@ -29,8 +24,7 @@ func toWsForwarder(m *proto.Message) error {
 	if err != nil {
 		return err
 	}
-	invokerLambda := os.Getenv(EnvWsForwarder)
-	invoker, err := NewLambdaInvoker(invokerLambda, "")
+	invoker, err := NewLambdaInvoker(mantilConfig.WsForwarderName, "")
 	if err != nil {
 		return err
 	}

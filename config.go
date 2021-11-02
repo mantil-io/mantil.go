@@ -1,6 +1,8 @@
 package mantil
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/user"
@@ -8,6 +10,7 @@ import (
 )
 
 const (
+	EnvConfig      = "MANTIL_GO_CONFIG"
 	EnvProjectName = "MANTIL_PROJECT"
 	EnvStageName   = "MANTIL_STAGE"
 	EnvKVTableName = "MANTIL_KV_TABLE"
@@ -17,6 +20,29 @@ const (
 var mantilEnvVars = []string{EnvProjectName, EnvStageName, EnvKVTableName}
 
 type Config struct {
+	ResourceTags    map[string]string
+	WsForwarderName string
+}
+
+func (c *Config) Encode() string {
+	buf, _ := json.Marshal(c)
+	return base64.StdEncoding.EncodeToString(buf)
+}
+
+func readConfig() (Config, error) {
+	c := Config{}
+	encoded, err := ensureEnv(EnvConfig, "mantil.go config not found")
+	if err != nil {
+		return c, err
+	}
+	buf, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return c, err
+	}
+	if err := json.Unmarshal(buf, &c); err != nil {
+		return c, err
+	}
+	return c, nil
 }
 
 func (c *Config) KvTableName() (string, error) {
@@ -82,19 +108,4 @@ func (c *Config) username() string {
 		return "anonymous"
 	}
 	return user.Username
-}
-
-// ResourceTags returns list of all tags that should be added to newly created resources
-// which is all env variables with EnvTagPrefix prefix
-func (c *Config) ResourceTags() map[string]string {
-	tags := map[string]string{}
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, EnvTagPrefix) {
-			continue
-		}
-		pair := strings.SplitN(e, "=", 2)
-		t, v := pair[0], pair[1]
-		tags[t] = v
-	}
-	return tags
 }

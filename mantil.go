@@ -28,9 +28,15 @@ func waitForInterupt() {
 }
 
 var logger *log.Logger
+var mantilConfig Config
 
 func init() {
 	logger = log.New(os.Stderr, "[mantil] ", log.LstdFlags|log.Lmicroseconds|log.Lmsgprefix)
+	var err error
+	mantilConfig, err = readConfig()
+	if err != nil {
+		info("%v", err)
+	}
 }
 
 // turn off library logging
@@ -49,5 +55,3 @@ var interuptContext context.Context
 
 // options to hide panic logs in tests
 var logPanic = true
-
-var defaultConfig = &Config{}
