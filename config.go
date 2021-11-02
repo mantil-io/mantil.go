@@ -24,11 +24,6 @@ type Config struct {
 	WsForwarderName string
 }
 
-func (c *Config) Encode() string {
-	buf, _ := json.Marshal(c)
-	return base64.StdEncoding.EncodeToString(buf)
-}
-
 func readConfig() (Config, error) {
 	c := Config{}
 	encoded, err := ensureEnv(EnvConfig, "mantil.go config not found")
