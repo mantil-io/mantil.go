@@ -1,4 +1,4 @@
-package nats
+package logs
 
 import (
 	"github.com/nats-io/nats.go"

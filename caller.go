@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/mantil-io/mantil.go/pkg/proto"
+	"github.com/mantil-io/mantil.go/proto"
 )
 
 func newCaller(i interface{}) *caller {

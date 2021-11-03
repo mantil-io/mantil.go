@@ -3,7 +3,7 @@ package mantil
 import (
 	"encoding/json"
 
-	"github.com/mantil-io/mantil.go/pkg/proto"
+	"github.com/mantil-io/mantil.go/proto"
 )
 
 func Publish(subject string, payload interface{}) error {

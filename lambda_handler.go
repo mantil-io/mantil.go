@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/mantil-io/mantil.go/pkg/nats"
+	"github.com/mantil-io/mantil.go/logs"
 )
 
 type lambdaHandler struct {
@@ -29,7 +29,7 @@ func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, re
 	req := parseRequest(payload)
 	reqCtx := h.initContext(ctx, &req)
 
-	cb, err := nats.LambdaResponse(req.Headers)
+	cb, err := logs.LambdaResponse(req.Headers)
 	if err != nil {
 		info("failed to start nats lambda response: %v", err)
 	}
