@@ -16,6 +16,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/nats-io/jsm.go v0.0.24
+	github.com/nats-io/nats-server/v2 v2.3.0
 	github.com/nats-io/nats.go v1.11.0
 	github.com/nats-io/nkeys v0.3.0
 	github.com/stretchr/testify v1.7.0

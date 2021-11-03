@@ -8,7 +8,7 @@ import (
 )
 
 func NewListener() (*Listener, error) {
-	nc, err := nats.Connect(defaultNatsURL, publicUserAuth())
+	nc, err := connect()
 	if err != nil {
 		return nil, fmt.Errorf("connect error %w", err)
 	}
@@ -65,35 +65,35 @@ func (l *Listener) waitForResponse(ctx context.Context, subject string) ([]byte,
 	}
 }
 
-func (l *Listener) multipleResponses(ctx context.Context, subject string) (chan []byte, error) {
-	nmsgs := make(chan *nats.Msg, 1024)
-	sub, err := l.nc.ChanSubscribe(subject, nmsgs)
-	if err != nil {
-		return nil, fmt.Errorf("subscribe error %w", err)
-	}
-	out := make(chan []byte)
-	go func() {
-		defer close(out)
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case nm := <-nmsgs:
-				if err := asError(nm); err != nil {
-					// TODO what now, add errchan, log, ...
-					out <- nil
-					return
-				}
-				out <- nm.Data
-				if !isContinuation(nm) {
-					return
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-	return out, nil
-}
+// func (l *Listener) multipleResponses(ctx context.Context, subject string) (chan []byte, error) {
+// 	nmsgs := make(chan *nats.Msg, 1024)
+// 	sub, err := l.nc.ChanSubscribe(subject, nmsgs)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("subscribe error %w", err)
+// 	}
+// 	out := make(chan []byte)
+// 	go func() {
+// 		defer close(out)
+// 		defer sub.Unsubscribe()
+// 		for {
+// 			select {
+// 			case nm := <-nmsgs:
+// 				if err := asError(nm); err != nil {
+// 					// TODO what now, add errchan, log, ...
+// 					out <- nil
+// 					return
+// 				}
+// 				out <- nm.Data
+// 				if !isContinuation(nm) {
+// 					return
+// 				}
+// 			case <-ctx.Done():
+// 				return
+// 			}
+// 		}
+// 	}()
+// 	return out, nil
+// }
 
 func (l *Listener) Close() error {
 	l.nc.Close()

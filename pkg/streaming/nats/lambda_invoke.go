@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -21,28 +22,40 @@ type invoke struct {
 const (
 	logsInboxHeaderKey     = "mantil-nats-logs-inbox"
 	responseInboxHeaderKey = "mantil-nats-response-inbox"
+	configHeaderKey        = "mantil-nats-config"
 )
 
 // LmabdaResponse analyzes headers and redirects log to nats subject (if header defined).
 // Returns function to be called with lambda response.
 func LambdaResponse(headers map[string]string) (func(interface{}, error), error) {
-	logsInbox := headers[logsInboxHeaderKey]
-	responseInbox := headers[responseInboxHeaderKey]
+	//logsInbox := headers[logsInboxHeaderKey]
+	//responseInbox := headers[responseInboxHeaderKey]
+	configBuf := headers[configHeaderKey]
 	noop := func(interface{}, error) {}
-	if logsInbox == "" && responseInbox == "" {
+	// if logsInbox == "" && responseInbox == "" {
+	// 	return noop, nil
+	// }
+	if configBuf == "" {
 		return noop, nil
 	}
-	pub, err := NewPublisher("")
+
+	var c Config
+	err := c.Unmarshal(configBuf)
+	if err != nil {
+		return noop, err
+	}
+	pub, err := c.Publisher()
+	//pub, err := NewPublisher("")
 	if err != nil {
 		return noop, err
 	}
 
 	i := invoke{
-		logsInbox:     logsInbox,
-		responseInbox: responseInbox,
+		logsInbox:     c.LogsSubject,     //logsInbox,
+		responseInbox: c.ResponseSubject, //responseInbox,
 		pub:           pub,
 	}
-	if logsInbox != "" {
+	if i.logsInbox != "" {
 		i.startLogsLoop()
 	}
 	return i.response, nil
@@ -131,7 +144,7 @@ type logWriter struct {
 
 func newLogWriter() *logWriter {
 	w := &logWriter{
-		ch:            make(chan []byte),
+		ch:            make(chan []byte, 16),
 		defaultWriter: log.Writer(),
 	}
 	log.SetOutput(w)
@@ -140,6 +153,9 @@ func newLogWriter() *logWriter {
 
 func (w *logWriter) Write(p []byte) (n int, err error) {
 	ln := len(p)
+	if ln == 0 {
+		return ln, nil
+	}
 	if ln > 0 && p[len(p)-1] == 10 {
 		ln = ln - 1
 	}
@@ -157,22 +173,74 @@ func (w *logWriter) close() {
 // LambdaListener cretes header for calling lambda.
 // Listens for incoming log lines and response (or multiple) responses.
 type LambdaListener struct {
+	config        Config
 	logsInbox     string
 	responseInbox string
 	listener      *Listener
-	exitLogs      func()
+	logSink       func(chan []byte)
+	logsDone      chan struct{}
+	responseDone  chan error
 }
 
-func NewLambdaListener() (*LambdaListener, error) {
+func noopLogSink(ch chan []byte) {
+	for range ch {
+	}
+}
+
+func NewLambdaListenerFromConfig(c Config) (*LambdaListener, error) {
+	rsp := c.Rsp
+	if c.LogSink == nil {
+		c.LogSink = noopLogSink
+	}
+	c.LogsSubject = nats.NewInbox()
+	c.ResponseSubject = nats.NewInbox()
+	c.Subject = nats.NewInbox()
+	l := LambdaListener{
+		config:        c,
+		logsInbox:     c.LogsSubject,
+		responseInbox: c.ResponseSubject,
+		logSink:       c.LogSink,
+		logsDone:      make(chan struct{}),
+		responseDone:  make(chan error, 1),
+	}
+	n, err := c.Listener()
+	if err != nil {
+		return nil, err
+	}
+	l.listener = n
+	if err := l.startLogsLoop(context.Background()); err != nil {
+		return nil, err
+	}
+	go func() {
+		l.responseDone <- l.response(context.Background(), rsp)
+		close(l.responseDone)
+	}()
+	return &l, nil
+}
+
+func NewLambdaListener(logSink func(chan []byte), rsp interface{}) (*LambdaListener, error) {
+	if logSink == nil {
+		logSink = noopLogSink
+	}
 	l := LambdaListener{
 		logsInbox:     nats.NewInbox(),
 		responseInbox: nats.NewInbox(),
+		logSink:       logSink,
+		logsDone:      make(chan struct{}),
+		responseDone:  make(chan error, 1),
 	}
 	n, err := NewListener()
 	if err != nil {
 		return nil, err
 	}
 	l.listener = n
+	if err := l.startLogsLoop(context.Background()); err != nil {
+		return nil, err
+	}
+	go func() {
+		l.responseDone <- l.response(context.Background(), rsp)
+		close(l.responseDone)
+	}()
 	return &l, nil
 }
 
@@ -180,27 +248,33 @@ func (l *LambdaListener) Headers() map[string]string {
 	headers := make(map[string]string)
 	headers[logsInboxHeaderKey] = l.logsInbox
 	headers[responseInboxHeaderKey] = l.responseInbox
+	headers[configHeaderKey] = l.config.Marshal()
 	return headers
 }
 
-func (l *LambdaListener) Logs(ctx context.Context) (chan []byte, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	l.exitLogs = cancel
-	return l.listener.Listen(ctx, l.logsInbox)
+func (l *LambdaListener) startLogsLoop(ctx context.Context) error {
+	ch, err := l.listener.Listen(ctx, l.logsInbox)
+	if err != nil {
+		return err
+	}
+	go func() {
+		l.logSink(ch)
+		close(l.logsDone)
+	}()
+	return nil
 }
 
-func (l *LambdaListener) RawResponse(ctx context.Context) ([]byte, error) {
-	defer func() {
-		if l.exitLogs != nil {
-			l.exitLogs()
-			l.exitLogs = nil
-		}
-	}()
+func (l *LambdaListener) Done() error {
+	<-l.logsDone
+	return <-l.responseDone
+}
+
+func (l *LambdaListener) rawResponse(ctx context.Context) ([]byte, error) {
 	return l.listener.waitForResponse(ctx, l.responseInbox)
 }
 
-func (l *LambdaListener) Response(ctx context.Context, o interface{}) error {
-	buf, err := l.RawResponse(ctx)
+func (l *LambdaListener) response(ctx context.Context, rsp interface{}) error {
+	buf, err := l.rawResponse(ctx)
 	if err != nil {
 		return err
 	}
@@ -210,16 +284,20 @@ func (l *LambdaListener) Response(ctx context.Context, o interface{}) error {
 	if len(buf) == 0 {
 		return nil
 	}
-	return json.Unmarshal(buf, o)
+
+	switch v := rsp.(type) {
+	case *bytes.Buffer:
+		_, err := v.Write(buf)
+		return err
+	default:
+		return json.Unmarshal(buf, rsp)
+	}
 }
 
-func (l *LambdaListener) Responses(ctx context.Context) (chan []byte, error) {
-	return l.listener.multipleResponses(ctx, l.responseInbox)
-}
+// func (l *LambdaListener) Responses(ctx context.Context) (chan []byte, error) {
+// 	return l.listener.multipleResponses(ctx, l.responseInbox)
+// }
 
 func (l *LambdaListener) Close() {
-	if l.exitLogs != nil {
-		l.exitLogs()
-	}
 	l.listener.Close()
 }
