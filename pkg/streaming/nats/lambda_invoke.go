@@ -11,96 +11,80 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type invoke struct {
-	logsInbox     string
-	responseInbox string
-	pub           *Publisher
-	logger        *logWriter
-	loopDone      chan struct{}
-}
-
 const (
-	logsInboxHeaderKey     = "mantil-nats-logs-inbox"
-	responseInboxHeaderKey = "mantil-nats-response-inbox"
-	configHeaderKey        = "mantil-nats-config"
+	configHeaderKey = "mantil-nats-config"
 )
+
+type invoke struct {
+	pub          *Publisher
+	logger       *logWriter
+	logsLoopDone chan struct{}
+}
 
 // LmabdaResponse analyzes headers and redirects log to nats subject (if header defined).
 // Returns function to be called with lambda response.
 func LambdaResponse(headers map[string]string) (func(interface{}, error), error) {
-	//logsInbox := headers[logsInboxHeaderKey]
-	//responseInbox := headers[responseInboxHeaderKey]
 	configBuf := headers[configHeaderKey]
-	noop := func(interface{}, error) {}
-	// if logsInbox == "" && responseInbox == "" {
-	// 	return noop, nil
-	// }
 	if configBuf == "" {
-		return noop, nil
+		return nil, nil
 	}
-
-	var c Config
+	var c ConnectConfig
 	err := c.Unmarshal(configBuf)
 	if err != nil {
-		return noop, err
+		return nil, err
 	}
 	pub, err := c.Publisher()
-	//pub, err := NewPublisher("")
 	if err != nil {
-		return noop, err
+		return nil, err
 	}
-
 	i := invoke{
-		logsInbox:     c.LogsSubject,     //logsInbox,
-		responseInbox: c.ResponseSubject, //responseInbox,
-		pub:           pub,
+		pub: pub,
 	}
-	if i.logsInbox != "" {
-		i.startLogsLoop()
-	}
+	i.startLogsLoop()
 	return i.response, nil
 }
 
 func (i *invoke) response(rsp interface{}, err error) {
-	if i.logsInbox != "" {
-		i.closeLogsLoop()
-	}
-	if i.responseInbox != "" {
-		if err != nil {
-			i.pub.error(i.responseInbox, err)
-		} else {
-			i.publishResponse(rsp)
+	i.closeLogsLoop()
+	if err != nil {
+		if pe := i.pub.Error(err); pe != nil {
+			log.Printf("i.pub.Error error: %s", err)
+		}
+	} else {
+		if pe := i.publishResponse(rsp); pe != nil {
+			log.Printf("i.publishResponse error: %s", err)
 		}
 	}
 	i.pub.Close()
 }
 
-func (i *invoke) publishResponse(rsp interface{}) {
+func (i *invoke) publishResponse(rsp interface{}) error {
 	if rsp == nil {
-		i.pub.raw(i.responseInbox, nil)
-		return
+		return nil
 	}
 	switch v := rsp.(type) {
 	case []byte:
-		i.pub.raw(i.responseInbox, v)
+		return i.pub.Data(v)
 	case string:
-		i.pub.raw(i.responseInbox, []byte(v))
+		return i.pub.Data([]byte(v))
 	default:
 		if reflect.TypeOf(rsp).Kind() == reflect.Slice {
 			s := reflect.ValueOf(v)
 			last := s.Len() - 1
 			for j := 0; j <= last; j++ {
 				e := s.Index(j)
-				buf := i.marshal(e.Interface())
-				i.pub.rawWithContinuation(i.responseInbox, buf, j == last)
+				buf := marshal(e.Interface())
+				if err := i.pub.Data(buf); err != nil {
+					return err
+				}
 			}
-			return
+			return nil
 		}
-		i.pub.raw(i.responseInbox, i.marshal(rsp))
+		return i.pub.Data(marshal(rsp))
 	}
 }
 
-func (i *invoke) marshal(o interface{}) []byte {
+func marshal(o interface{}) []byte {
 	if o == nil {
 		return nil
 	}
@@ -119,21 +103,20 @@ func (i *invoke) marshal(o interface{}) []byte {
 
 func (i *invoke) startLogsLoop() {
 	i.logger = newLogWriter()
-	i.loopDone = make(chan struct{})
+	i.logsLoopDone = make(chan struct{})
 	go i.logsLoop()
 }
 
 func (i *invoke) logsLoop() {
 	for msg := range i.logger.ch {
-		i.pub.raw(i.logsInbox, msg)
+		i.pub.Log(msg)
 	}
-	i.pub.raw(i.logsInbox, nil)
-	close(i.loopDone)
+	close(i.logsLoopDone)
 }
 
 func (i *invoke) closeLogsLoop() {
 	i.logger.close()
-	<-i.loopDone
+	<-i.logsLoopDone
 }
 
 // copies log messages to ch
@@ -173,13 +156,20 @@ func (w *logWriter) close() {
 // LambdaListener cretes header for calling lambda.
 // Listens for incoming log lines and response (or multiple) responses.
 type LambdaListener struct {
-	config        Config
-	logsInbox     string
-	responseInbox string
-	listener      *Listener
-	logSink       func(chan []byte)
-	logsDone      chan struct{}
-	responseDone  chan error
+	config       ListenerConfig
+	subject      string
+	listener     *Listener
+	logSink      func(chan []byte)
+	logsDone     chan struct{}
+	responseDone chan error
+}
+
+type ListenerConfig struct {
+	ServerURL    string
+	PublisherJWT string
+	ListenerJWT  string
+	LogSink      func(chan []byte)
+	Rsp          interface{}
 }
 
 func noopLogSink(ch chan []byte) {
@@ -187,104 +177,77 @@ func noopLogSink(ch chan []byte) {
 	}
 }
 
-func NewLambdaListenerFromConfig(c Config) (*LambdaListener, error) {
+func NewLambdaListener(c ListenerConfig) (*LambdaListener, error) {
 	rsp := c.Rsp
 	if c.LogSink == nil {
 		c.LogSink = noopLogSink
 	}
-	c.LogsSubject = nats.NewInbox()
-	c.ResponseSubject = nats.NewInbox()
-	c.Subject = nats.NewInbox()
-	l := LambdaListener{
-		config:        c,
-		logsInbox:     c.LogsSubject,
-		responseInbox: c.ResponseSubject,
-		logSink:       c.LogSink,
-		logsDone:      make(chan struct{}),
-		responseDone:  make(chan error, 1),
-	}
-	n, err := c.Listener()
-	if err != nil {
-		return nil, err
-	}
-	l.listener = n
-	if err := l.startLogsLoop(context.Background()); err != nil {
-		return nil, err
-	}
-	go func() {
-		l.responseDone <- l.response(context.Background(), rsp)
-		close(l.responseDone)
-	}()
-	return &l, nil
-}
 
-func NewLambdaListener(logSink func(chan []byte), rsp interface{}) (*LambdaListener, error) {
-	if logSink == nil {
-		logSink = noopLogSink
-	}
 	l := LambdaListener{
-		logsInbox:     nats.NewInbox(),
-		responseInbox: nats.NewInbox(),
-		logSink:       logSink,
-		logsDone:      make(chan struct{}),
-		responseDone:  make(chan error, 1),
+		config:       c,
+		subject:      nats.NewInbox(),
+		logsDone:     make(chan struct{}),
+		responseDone: make(chan error, 1),
 	}
-	n, err := NewListener()
+	listenerConfig := ConnectConfig{
+		ServerURL:   c.ServerURL,
+		ListenerJWT: c.ListenerJWT,
+	}
+	n, err := listenerConfig.Listener()
 	if err != nil {
 		return nil, err
 	}
 	l.listener = n
-	if err := l.startLogsLoop(context.Background()); err != nil {
+	chs, err := n.listen(context.Background(), l.subject)
+	if err != nil {
 		return nil, err
 	}
 	go func() {
-		l.responseDone <- l.response(context.Background(), rsp)
-		close(l.responseDone)
+		l.config.LogSink(chs.logs)
+		close(l.logsDone)
+	}()
+
+	go func() {
+		err := <-chs.errc
+		if err != nil {
+			l.responseDone <- err
+			close(l.responseDone)
+			return
+		}
+
+		buf := <-chs.data
+		l.responseDone <- unmarshal(buf, rsp)
 	}()
 	return &l, nil
 }
 
 func (l *LambdaListener) Headers() map[string]string {
 	headers := make(map[string]string)
-	headers[logsInboxHeaderKey] = l.logsInbox
-	headers[responseInboxHeaderKey] = l.responseInbox
-	headers[configHeaderKey] = l.config.Marshal()
+	publisherConfig := ConnectConfig{
+		ServerURL:    l.config.ServerURL,
+		PublisherJWT: l.config.PublisherJWT,
+		Subject:      l.subject,
+	}
+	headers[configHeaderKey] = publisherConfig.Marshal()
 	return headers
 }
 
-func (l *LambdaListener) startLogsLoop(ctx context.Context) error {
-	ch, err := l.listener.Listen(ctx, l.logsInbox)
-	if err != nil {
-		return err
-	}
-	go func() {
-		l.logSink(ch)
-		close(l.logsDone)
-	}()
-	return nil
-}
-
 func (l *LambdaListener) Done() error {
+	defer l.listener.Close()
 	<-l.logsDone
 	return <-l.responseDone
 }
 
-func (l *LambdaListener) rawResponse(ctx context.Context) ([]byte, error) {
-	return l.listener.waitForResponse(ctx, l.responseInbox)
-}
-
-func (l *LambdaListener) response(ctx context.Context, rsp interface{}) error {
-	buf, err := l.rawResponse(ctx)
-	if err != nil {
-		return err
-	}
+func unmarshal(buf []byte, rsp interface{}) error {
 	if buf == nil {
+		return nil
+	}
+	if rsp == nil {
 		return nil
 	}
 	if len(buf) == 0 {
 		return nil
 	}
-
 	switch v := rsp.(type) {
 	case *bytes.Buffer:
 		_, err := v.Write(buf)
@@ -292,12 +255,4 @@ func (l *LambdaListener) response(ctx context.Context, rsp interface{}) error {
 	default:
 		return json.Unmarshal(buf, rsp)
 	}
-}
-
-// func (l *LambdaListener) Responses(ctx context.Context) (chan []byte, error) {
-// 	return l.listener.multipleResponses(ctx, l.responseInbox)
-// }
-
-func (l *LambdaListener) Close() {
-	l.listener.Close()
 }
