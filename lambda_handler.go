@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/mantil-io/mantil.go/pkg/streaming/nats"
+	"github.com/mantil-io/mantil.go/pkg/nats"
 )
 
 type lambdaHandler struct {
