@@ -29,8 +29,6 @@ github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.2.0 h1:g2npzssI/6
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.2.0/go.mod h1:a7XLWNKuVgOxjssEF019IiHPv35k8KHBaWv/wJAfi2A=
 github.com/aws/aws-sdk-go-v2/service/lambda v1.4.0 h1:kER9ICYXKQxU7t4BSIbK6dCxLREtM4DTlGTsttaJXV0=
 github.com/aws/aws-sdk-go-v2/service/lambda v1.4.0/go.mod h1:yKVqZqXjhuSGQwrz3GvHtLTqgeHIbMkKgwSVeVRL+2k=
-github.com/aws/aws-sdk-go-v2/service/sqs v1.9.0 h1:g6EHC3RFpgbRR8/Yk6BTbzfPn+E3o6J3zWPrcjvVJTw=
-github.com/aws/aws-sdk-go-v2/service/sqs v1.9.0/go.mod h1:BXA1CVaEd9TBOQ8G2ke7lMWdVggAeh35+h2HDO50z7s=
 github.com/aws/aws-sdk-go-v2/service/sso v1.3.0 h1:DMi9w+TpUam7eJ8ksL7svfzpqpqem2MkDAJKW8+I2/k=
 github.com/aws/aws-sdk-go-v2/service/sso v1.3.0/go.mod h1:qWR+TUuvfji9udM79e4CPe87C5+SjMEb2TFXkZaI0Vc=
 github.com/aws/aws-sdk-go-v2/service/sts v1.5.0 h1:Y1K9dHE2CYOWOvaJSIITq4mJfLX43iziThTvqs5FqOg=
@@ -62,10 +60,6 @@ github.com/google/go-cmp v0.5.4/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/go-cmp v0.5.6 h1:BKbKCqvP6I+rmFHt06ZmyQtvB8xAkWdhFyr0ZUNZcxQ=
 github.com/google/go-cmp v0.5.6/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
-github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
-github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
-github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1 h1:shLQSRRSCCPj3f2gpwzGwWFoC7ycTf1rcQZHOlsJ6N8=
