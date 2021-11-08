@@ -14,7 +14,6 @@ const (
 	EnvProjectName = "MANTIL_PROJECT"
 	EnvStageName   = "MANTIL_STAGE"
 	EnvKVTableName = "MANTIL_KV_TABLE"
-	EnvTagPrefix   = "MANTIL"
 )
 
 var mantilEnvVars = []string{EnvProjectName, EnvStageName, EnvKVTableName}
