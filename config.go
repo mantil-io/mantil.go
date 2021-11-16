@@ -21,6 +21,7 @@ var mantilEnvVars = []string{EnvProjectName, EnvStageName, EnvKVTableName}
 type Config struct {
 	ResourceTags    map[string]string
 	WsForwarderName string
+	NamingTemplate  string
 }
 
 func readConfig() (Config, error) {
@@ -40,22 +41,14 @@ func readConfig() (Config, error) {
 }
 
 func (c *Config) KvTableName() (string, error) {
-	val, err := ensureEnv(EnvKVTableName, "kv table name not found")
+	val, _ := ensureEnv(EnvKVTableName, "kv table name not found")
 	if val != "" {
 		return val, nil
 	}
 	if c.isUnitTestEnv() {
 		return fmt.Sprintf("mantil-go-%s-unit", c.username()), nil
 	}
-	stage, err := ensureEnv(EnvStageName, "stage name not found")
-	if err != nil {
-		return "", err
-	}
-	project, err := ensureEnv(EnvProjectName, "project name not found")
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s-%s-kv", project, stage), nil
+	return fmt.Sprintf(c.NamingTemplate, "kv"), nil
 }
 
 // hackery trick to know if I'm running in `go test`

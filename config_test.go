@@ -44,17 +44,11 @@ func testKvTableName(t *testing.T) {
 
 	args0 := os.Args[0]
 	os.Args[0] = ""
-	expected, err = mantilConfig.KvTableName()
-	require.Error(t, err)
 
-	os.Setenv(EnvStageName, "dev")
-	expected, err = mantilConfig.KvTableName()
-	require.Error(t, err)
-
-	os.Setenv(EnvProjectName, "project1")
+	mantilConfig.NamingTemplate = "project-stage-%s-abcdef"
 	expected, err = mantilConfig.KvTableName()
 	require.NoError(t, err)
-	require.Equal(t, expected, "project1-dev-kv")
+	require.Equal(t, expected, "project-stage-kv-abcdef")
 
 	os.Args[0] = args0
 }
