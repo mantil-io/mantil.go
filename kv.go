@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -26,7 +26,7 @@ type KV struct {
 }
 
 func NewKV(partition string) (*KV, error) {
-	tn, err := mantilConfig.KvTableName()
+	tn, err := config().kvTableName()
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (k *KV) createTable() error {
 	}
 
 	tags := []types.Tag{}
-	for k, v := range mantilConfig.ResourceTags {
+	for k, v := range config().ResourceTags {
 		tags = append(tags, types.Tag{
 			Key:   aws.String(k),
 			Value: aws.String(v),
@@ -130,7 +130,7 @@ func (k *KV) connect() error {
 	// Using the SDK's default configuration, loading additional config
 	// and credentials values from the environment variables, shared
 	// credentials, and shared configuration files
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := awsConfig.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return fmt.Errorf("unable to load SDK config, %w", err)
 	}

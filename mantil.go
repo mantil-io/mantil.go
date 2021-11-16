@@ -1,47 +1,39 @@
 package mantil
 
 import (
-	"context"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
-func InteruptContext() context.Context {
-	if interuptContext == nil {
-		ctx, stop := context.WithCancel(context.Background())
-		go func() {
-			waitForInterupt()
-			stop()
-		}()
-		interuptContext = ctx
-	}
-	return interuptContext
-}
-
-func waitForInterupt() {
-	c := make(chan os.Signal, 1)
-	//SIGINT je ctrl-C u shell-u, SIGTERM salje upstart kada se napravi sudo stop ...
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-	<-c
-}
-
 var logger *log.Logger
-var mantilConfig Config
+var config func() cfg
+
+// option to hide panic logs in tests
+var logPanic = true
 
 func init() {
 	logger = log.New(os.Stderr, "[mantil] ", log.LstdFlags|log.Lmicroseconds|log.Lmsgprefix)
-	var err error
-	mantilConfig, err = readConfig()
-	if err != nil {
-		info("%v", err)
+
+	// hide lazy load variable into init function
+	// expose function
+	var c *cfg
+	config = func() cfg {
+		if c != nil {
+			return *c
+		}
+		c = &cfg{}
+		if err := c.load(); err != nil {
+			info("%v", err)
+		}
+		return *c
 	}
 }
 
-// turn off library logging
-func Silent() {
-	logger = nil
+// SetLogger changes library logger.
+// By default it will log to stdout.
+// Use SetLogger(nil) to discard logs.
+func SetLogger(l *log.Logger) {
+	logger = l
 }
 
 func info(format string, v ...interface{}) {
@@ -50,8 +42,3 @@ func info(format string, v ...interface{}) {
 	}
 	logger.Printf(format, v...)
 }
-
-var interuptContext context.Context
-
-// options to hide panic logs in tests
-var logPanic = true

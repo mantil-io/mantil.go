@@ -64,12 +64,12 @@ func TestKVFindOperations(t *testing.T) {
 		{FindLessThan, []string{"4"}, 4},
 		{FindLessThanOrEqual, []string{"4"}, 5},
 	}
-	for _, c := range cases {
+	for no, c := range cases {
 		todos = make([]Todo, 0)
 		iter, err := kv.Find(&todos, c.op, c.args...)
 		require.NoError(t, err)
 		require.False(t, iter.HasMore())
-		require.Len(t, todos, c.requiredLen)
+		require.Len(t, todos, c.requiredLen, "case no %d", no)
 		require.Equal(t, c.requiredLen, iter.Count())
 	}
 

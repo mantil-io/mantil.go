@@ -24,7 +24,7 @@ func toWsForwarder(m *proto.Message) error {
 	if err != nil {
 		return err
 	}
-	invoker, err := NewLambdaInvoker(mantilConfig.WsForwarderName, "")
+	invoker, err := NewLambdaInvoker(config().WsForwarderName, "")
 	if err != nil {
 		return err
 	}

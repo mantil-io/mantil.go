@@ -11,7 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
@@ -25,7 +25,7 @@ type LambdaInvoker struct {
 	client   *lambda.Client
 }
 
-// NewLambdaCaller builds helper for invoking lambda functions.
+// NewLambdaInvoker builds helper for invoking lambda functions.
 //
 // function can be name of the function or full arn
 // name - my-function (name-only), my-function:v1 (with alias).
@@ -50,7 +50,7 @@ func NewLambdaInvoker(function, role string) (*LambdaInvoker, error) {
 }
 
 func (l *LambdaInvoker) setup() error {
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	cfg, err := awsConfig.LoadDefaultConfig(context.Background())
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func instanceMetadata() (*imds.GetInstanceIdentityDocumentOutput, *aws.Config, e
 		return nil, nil, err
 	}
 
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(iid.Region))
+	cfg, err := awsConfig.LoadDefaultConfig(ctx, awsConfig.WithRegion(iid.Region))
 	if err != nil {
 		return nil, nil, err
 	}
