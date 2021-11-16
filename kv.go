@@ -14,18 +14,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// KV primary and sort key names
+// KV primary and sort key names in DynamoDB table:
 const (
 	PK = "PK"
 	SK = "SK"
 )
 
+// KV is key value store backed DynamoDB. When used it becames part of the
+// Mantil project. DynamoDB table is created on demand, uses same naming
+// convention as all other Mantil project resources. And it is removed when
+// Mantil project stage is destroyed.
 type KV struct {
 	tableName string
 	partition string
 	svc       *dynamodb.Client
 }
 
+// Creates new KV store. All KV stores uses same DynamoDB table. Partition
+// splits that table into independent parts. Each partition has own set of keys.
 func NewKV(partition string) (*KV, error) {
 	tn, err := config().kvTableName()
 	if err != nil {
@@ -141,8 +147,9 @@ func (k *KV) connect() error {
 	return nil
 }
 
-func (k *KV) Put(key string, i interface{}) error {
-	av, err := attributevalue.MarshalMap(i)
+// Put value in to kv store by key.
+func (k *KV) Put(key string, value interface{}) error {
+	av, err := attributevalue.MarshalMap(value)
 	if err != nil {
 		return fmt.Errorf("failed to marshal record, %w", err)
 	}
@@ -158,7 +165,9 @@ func (k *KV) Put(key string, i interface{}) error {
 	return err
 }
 
-func (k *KV) Get(key string, i interface{}) error {
+// Get value for the key.
+// Value provided must be a non-nil pointer type.
+func (k *KV) Get(key string, value interface{}) error {
 	input := &dynamodb.GetItemInput{
 		Key: map[string]types.AttributeValue{
 			PK: &types.AttributeValueMemberS{Value: k.partition},
@@ -173,7 +182,7 @@ func (k *KV) Get(key string, i interface{}) error {
 	if result.Item == nil {
 		return ErrItemNotFound{key: key}
 	}
-	return attributevalue.UnmarshalMap(result.Item, i)
+	return attributevalue.UnmarshalMap(result.Item, value)
 }
 
 type FindOperator int
@@ -188,6 +197,16 @@ const (
 	FindAll
 )
 
+// Find searches KV and returns iterator reading multiple items which satisfies
+// search criteria.
+// Example:
+//   todos = make([]Todo, 0)
+//   iter, err := kv.Find(&todos, FindBetween, "2", "6")
+//   ... consume todos
+//   if iter.HasMore() {
+//      iter.Next(&todos)
+//      ... consume next chunk
+//
 func (k *KV) Find(items interface{}, op FindOperator, args ...string) (*FindIterator, error) {
 	keyCondition, expressionAttributes, err := k.findConditions(op, args...)
 	if err != nil {
@@ -247,6 +266,7 @@ func (k *KV) findConditions(op FindOperator, args ...string) (string, map[string
 	return keyCondition, expressionAttributes, nil
 }
 
+// FindAll return iterator over oll items in KV store.
 func (k *KV) FindAll(items interface{}) (*FindIterator, error) {
 	return k.Find(items, FindAll)
 }
@@ -280,6 +300,8 @@ type FindIterator struct {
 	queryOutput *dynamodb.QueryOutput
 }
 
+// HasMore returns true if there are more items in iterator after those returned
+// by first find or last Next.
 func (i *FindIterator) HasMore() bool {
 	if i.queryOutput == nil {
 		return false
@@ -287,6 +309,7 @@ func (i *FindIterator) HasMore() bool {
 	return i.queryOutput.LastEvaluatedKey != nil && len(i.queryOutput.LastEvaluatedKey) > 0
 }
 
+// Count number of items in iterator.
 func (i FindIterator) Count() int {
 	if i.queryOutput == nil {
 		return 0
@@ -294,6 +317,7 @@ func (i FindIterator) Count() int {
 	return int(i.queryOutput.Count)
 }
 
+// Next returns fills next chunk of itmes.
 func (i *FindIterator) Next(items interface{}) error {
 	if !i.HasMore() {
 		return nil
@@ -333,6 +357,7 @@ func (k *KV) find(items interface{}, limit int, keyCondition string, expressionA
 	}, nil
 }
 
+// Delete key or list of keys from KV.
 func (k *KV) Delete(key ...string) error {
 	if len(key) == 0 {
 		return nil
@@ -343,6 +368,7 @@ func (k *KV) Delete(key ...string) error {
 	return k.deleteMany(key...)
 }
 
+// DeleteAll removes all keys from KV.
 func (k *KV) DeleteAll() error {
 	keyCondition, expressionAttributes, _ := k.findConditions(FindAll)
 	var lastEvaluatedKey map[string]types.AttributeValue
@@ -437,6 +463,7 @@ func chunkKeys(keys []string, chunkSize int) [][]string {
 	return chunks
 }
 
+// ErrItemNotFound is returned when item with that key is not found in key value store.
 type ErrItemNotFound struct {
 	key string
 }

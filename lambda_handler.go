@@ -1,3 +1,12 @@
+// Package mantil integrates Lambda function with API's in Mantil project. It
+// is similar to the default Go Lambda integration. The main difference is that
+// entrypoint LmabdaHandler accepts struct instance and exposes each exported
+// method of that struct. Where the default implementation has single function
+// as entrypoint.
+//
+// Package also provides simple key value store interface backed by an DynamoDB
+// table. It manages that table as part of the Mantil project. It is created on
+// demand and destroyed with project.
 package mantil
 
 import (
@@ -20,9 +29,62 @@ func newHandler(api interface{}) *lambdaHandler {
 	}
 }
 
+// LambdaHandler is entrypoint for Mantil Lambda functions.
+// Use it in your Lambda functions:
+//   mantil.LambdaHandler(api)
+// where api is Go struct. All exported methods of the api struct will be
+// exposed as API Gateway HTTP methods.
+// Exported methods must follow this rules:
+//
+// 	* may take between 0 and two arguments.
+// 	* if there are two arguments, the first argument must satisfy the "context.Context" interface.
+// 	* may return between 0 and two arguments.
+// 	* if there are two return values, the second argument must be an error.
+// 	* if there is one return value it must be an error.
+//
+// valid signatures are:
+//
+//   func ()
+//   func () error
+//   func (TIn) error
+//   func () (TOut, error)
+//   func (context.Context) error
+//   func (context.Context, TIn) error
+//   func (context.Context) (TOut, error)
+//   func (context.Context, TIn) (TOut, error)
+//
+// For example of Lambda function see this example:
+// https://github.com/mantil-io/template-excuses/blob/master/functions/excuses/main.go
+//
+// That defines Lambda handler around this Go struct:
+// https://github.com/mantil-io/template-excuses/blob/master/api/excuses/excuses.go
+//
+// When used with API Gateway in Mantil application exported methods are exposed at URLs:
+//  Default - [root]/excuses
+//  Count   - [root]/excuses/count
+//  Random  - [root]/excuses/random
+// ... and so on, where excuses is the name of this api.
+//
+// This is similar to the default Go Lambda integration: https://docs.aws.amazon.com/lambda/latest/dg/golang-handler.html
+// With added feature that all struct exported methods all exposed.
+//
+// Context provided to the methods is RequestContext which is wrapper around
+// default lambdacontext with few added attributes.
+//
+// If you are using AWS Console and test calling Lambda functions use this test data:
+//   {
+//     "uri": "count",
+//     "payload": ...
+//   }
+// to call count method for example.
 func LambdaHandler(api interface{}) {
 	handler := newHandler(api)
 	lambda.StartHandler(handler)
+}
+
+// Invoke implements lambda.Handler interface required by lambda.StartHandler in LmabdHandler function.
+func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
+	return h.formatResponse(h.invoke(ctx, payload))
 }
 
 func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, response) {
@@ -59,10 +121,6 @@ func (h *lambdaHandler) formatResponse(req Request, rsp response) ([]byte, error
 	default:
 		return rsp.Raw()
 	}
-}
-
-func (h *lambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
-	return h.formatResponse(h.invoke(ctx, payload))
 }
 
 func (h *lambdaHandler) initContext(ctx context.Context, req *Request) context.Context {
