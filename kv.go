@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
+// KV primary and sort key names
 const (
 	PK = "PK"
 	SK = "SK"

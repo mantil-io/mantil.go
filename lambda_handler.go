@@ -86,19 +86,29 @@ func (h *lambdaHandler) initContext(ctx context.Context, req *Request) context.C
 			cv.Request = *req
 		}
 	}
-	return context.WithValue(ctx, ContextKey, &cv)
+	return context.WithValue(ctx, contextKey, &cv)
 }
 
+// RequestContext is provided as first context attribute to all api methods handled by mantil.go
+// You can get it by mantil.FromContext().
+// It is wrapper arround github.com/aws/aws-lambda-go/lambdacontext
 type RequestContext struct {
+	// Number of same worker Lambda function invocations
+	// 1 - cold start
 	RequestNo int
-	Request   Request
-	Lambda    *lambdacontext.LambdaContext
+	// Lambda Request attributes
+	Request Request
+	// Ref: https://pkg.go.dev/github.com/aws/aws-lambda-go@v1.27.0/lambdacontext#LambdaContext
+	Lambda *lambdacontext.LambdaContext
 }
 
+// Authorizer attributes.
+// This is place where awuthorizer on API Gateway stores his metadata.
 func (r *RequestContext) Authorizer() map[string]interface{} {
 	return r.Request.attr.RequestContext.Authorizer
 }
 
+// WSConnectionID if the request is received through Websocket API Gateway this will return ID.
 func (r *RequestContext) WSConnectionID() string {
 	return r.Request.attr.RequestContext.ConnectionID
 }
@@ -110,10 +120,10 @@ type key struct{}
 // The key for a LambdaContext in Contexts.
 // Users of this package must use lambdacontext.NewContext and lambdacontext.FromContext
 // instead of using this key directly.
-var ContextKey = &key{}
+var contextKey = &key{}
 
 // FromContext returns the LambdaContext value stored in ctx, if any.
 func FromContext(ctx context.Context) (*RequestContext, bool) {
-	lc, ok := ctx.Value(ContextKey).(*RequestContext)
+	lc, ok := ctx.Value(contextKey).(*RequestContext)
 	return lc, ok
 }

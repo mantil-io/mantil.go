@@ -103,7 +103,7 @@ func (c *response) AsStreaming(req Request) (*proto.Message, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	rm := req.ToStreamingResponse(c.payload)
+	rm := req.toStreamingResponse(c.payload)
 	return &rm, nil
 }
 

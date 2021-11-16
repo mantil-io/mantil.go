@@ -88,6 +88,8 @@ func (l *LambdaInvoker) region(cfg aws.Config) string {
 	return ""
 }
 
+// Call executes sync Lambda invoke.
+// Expects payload to send in the Lambda function call.
 func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	input := &lambda.InvokeInput{
 		FunctionName: &l.function,
@@ -111,6 +113,7 @@ func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	return output.Payload, nil
 }
 
+// CallAsync makes async Lambda invoke
 func (l *LambdaInvoker) CallAsync(payload []byte) error {
 	input := &lambda.InvokeInput{
 		FunctionName:   &l.function,

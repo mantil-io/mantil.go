@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/mantil-io/mantil.go/proto"
 )
 
 type RequestType int
 
+// RequestType enum possible values:
 const (
 	RequestTypeUnknown = iota
 	APIGateway
@@ -20,6 +20,13 @@ const (
 	Streaming
 )
 
+// Request contains Lambda function request attributes.
+// It can be many sources of calling Lambda function:
+//  * API Gateway
+//  * AWS Console - detected at Type Unknown
+//  * SDK         - detected as Type Unknown
+//  * Websocket API Gateway methods
+// Request contains most usefull attributes regarding of calling method.
 type Request struct {
 	Type    RequestType
 	Methods []string
@@ -152,25 +159,7 @@ func (r *Request) body() []byte {
 	return nil
 }
 
-func (r *Request) AsAPIGatewayRequest() events.APIGatewayProxyRequest {
-	var agw events.APIGatewayProxyRequest
-	_ = json.Unmarshal(r.Raw, &agw)
-	return agw
-}
-
-func (r *Request) AsWebsocketRequest() events.APIGatewayWebsocketProxyRequest {
-	var wsr events.APIGatewayWebsocketProxyRequest
-	_ = json.Unmarshal(r.Raw, &wsr)
-	return wsr
-}
-
-func (r *Request) AsStreamingRequest() proto.Message {
-	var msg proto.Message
-	_ = json.Unmarshal(r.Raw, &msg)
-	return msg
-}
-
-func (r *Request) ToStreamingResponse(rspPayload []byte) proto.Message {
+func (r *Request) toStreamingResponse(rspPayload []byte) proto.Message {
 	return proto.Message{
 		Type:         proto.Response,
 		ConnectionID: r.attr.ConnectionID,

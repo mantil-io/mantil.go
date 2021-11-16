@@ -31,7 +31,7 @@ func init() {
 
 // SetLogger changes library logger.
 // By default it will log to stdout.
-// Use SetLogger(nil) to discard logs.
+// Use `SetLogger(nil)` to discard logs.
 func SetLogger(l *log.Logger) {
 	logger = l
 }

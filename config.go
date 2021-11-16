@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// Configuration environment variables:
 const (
 	EnvConfig      = "MANTIL_GO_CONFIG"
 	EnvKVTableName = "MANTIL_KV_TABLE"
