@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.4.3
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.4.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.5.0
-	github.com/nats-io/jsm.go v0.0.24
+	github.com/klauspost/compress v1.12.1 // indirect
 	github.com/nats-io/nats-server/v2 v2.3.0
 	github.com/nats-io/nats.go v1.11.0
 	github.com/nats-io/nkeys v0.3.0
