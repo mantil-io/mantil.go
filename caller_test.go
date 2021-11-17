@@ -73,7 +73,7 @@ func (h *Hello) Ping() string {
 }
 
 func TestCaller(t *testing.T) {
-	Silent() // remove log lines from test output
+	SetLogger(nil) // remove log lines from test output
 	cases := []struct {
 		method     string
 		req        string
