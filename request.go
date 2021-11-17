@@ -168,3 +168,19 @@ func (r *Request) toStreamingResponse(rspPayload []byte) proto.Message {
 		Payload:      rspPayload,
 	}
 }
+
+// RemoteIP returns remote IP (client IP) for request recived through API Gateway
+func (r *Request) RemoteIP() string {
+	if r.Headers == nil {
+		return ""
+	}
+	ips := r.Headers["X-Forwarded-For"]
+	if len(ips) == 0 {
+		return ""
+	}
+	if !strings.Contains(ips, ",") {
+		return ips
+
+	}
+	return strings.Split(ips, ",")[0]
+}

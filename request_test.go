@@ -2,6 +2,7 @@ package mantil
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -40,5 +41,14 @@ func TestParseRequest(t *testing.T) {
 		err = json.Unmarshal(req.Body, &kv)
 		require.NoError(t, err, d.filename)
 		require.Equal(t, "value", kv.Key, d.filename)
+
+		fmt.Printf("remoteIP: %s", req.RemoteIP())
 	}
+}
+
+func TestRemoteIP(t *testing.T) {
+	buf, err := ioutil.ReadFile("testdata/api-gateway.json")
+	require.NoError(t, err)
+	req := parseRequest(buf)
+	require.Equal(t, "93.136.54.42", req.RemoteIP())
 }
