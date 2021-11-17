@@ -1,12 +1,16 @@
-// Package mantil integrates Lambda function with API's in Mantil project. It
-// is similar to the default Go Lambda integration. The main difference is that
-// entrypoint LmabdaHandler accepts struct instance and exposes each exported
-// method of that struct. Where the default implementation has single function
-// as entrypoint.
+// Package mantil integrates Lambda function with API's in a Mantil project.
 //
-// Package also provides simple key value store interface backed by an DynamoDB
-// table. It manages that table as part of the Mantil project. It is created on
-// demand and destroyed with project.
+// It is similar to the default AWS Go [Lambda function
+// handler](https://docs.aws.amazon.com/lambda/latest/dg/golang-handler.html). The
+// main difference is that mantil.go handler mantil.LmabdaHandler accepts struct
+// instance and exposes each exported method of that struct. Where the default
+// implementation has a single function as an entrypoint.
+//
+// Package is intented for usage inside Mantil project.
+//
+// Package also provides simple key value store interface backed by a DynamoDB table.
+// It manages that table as part of the Mantil project. It is created on demand and
+// destroyed with the project.
 package mantil
 
 import (
