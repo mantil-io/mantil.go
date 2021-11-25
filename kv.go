@@ -2,13 +2,10 @@ package mantil
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -27,7 +24,7 @@ const (
 type KV struct {
 	tableName string
 	partition string
-	svc       *dynamodb.Client
+	dynamo    *dynamo
 }
 
 // Creates new KV store. All KV stores uses same DynamoDB table. Partition
@@ -37,114 +34,23 @@ func NewKV(partition string) (*KV, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	d, err := newDynamo()
+	if err != nil {
+		return nil, err
+	}
 	k := KV{
 		partition: partition,
 		tableName: tn,
+		dynamo:    d,
 	}
-	if err := k.connect(); err != nil {
-		return nil, err
-	}
-	if exists, _ := k.tableExists(); exists {
+
+	if exists, _ := k.dynamo.tableExists(tn); exists {
 		return &k, nil
 	}
-	if err := k.createTable(); err != nil {
+	if err := k.dynamo.createTable(tn, PK, SK); err != nil {
 		return nil, err
 	}
 	return &k, nil
-}
-
-func (k *KV) createTable() error {
-	info("creating KV table %s", k.tableName)
-	input := &dynamodb.CreateTableInput{
-		AttributeDefinitions: []types.AttributeDefinition{
-			{
-				AttributeName: aws.String(PK),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
-			{
-				AttributeName: aws.String(SK),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
-		},
-		KeySchema: []types.KeySchemaElement{
-			{
-				AttributeName: aws.String(PK),
-				KeyType:       types.KeyTypeHash,
-			},
-			{
-				AttributeName: aws.String(SK),
-				KeyType:       types.KeyTypeRange,
-			},
-		},
-		TableName:   aws.String(k.tableName),
-		BillingMode: types.BillingModePayPerRequest,
-	}
-
-	tags := []types.Tag{}
-	for k, v := range config().ResourceTags {
-		tags = append(tags, types.Tag{
-			Key:   aws.String(k),
-			Value: aws.String(v),
-		})
-	}
-	input.Tags = tags
-
-	_, err := k.svc.CreateTable(context.TODO(), input)
-	if err != nil {
-		var riu *types.ResourceInUseException
-		if errors.As(err, &riu) {
-			//log.Printf("table %s already exists", k.tableName)
-			return nil
-		}
-		return fmt.Errorf("failed to create table %s, %w", k.tableName, err)
-	}
-
-	info("waiting for table %s", k.tableName)
-	startWait := time.Now()
-	maxDelay := 5 * time.Minute
-	waiter := dynamodb.NewTableExistsWaiter(k.svc, func(o *dynamodb.TableExistsWaiterOptions) {
-		o.MinDelay = 2 * time.Second
-		o.MaxDelay = maxDelay
-	})
-	params := &dynamodb.DescribeTableInput{
-		TableName: aws.String(k.tableName),
-	}
-	if err := waiter.Wait(context.TODO(), params, maxDelay); err != nil {
-		return err
-	}
-	info("table ready in %v", time.Now().Sub(startWait))
-	return nil
-}
-
-func (k *KV) tableExists() (bool, error) {
-	input := &dynamodb.DescribeTableInput{
-		TableName: aws.String(k.tableName),
-	}
-
-	_, err := k.svc.DescribeTable(context.TODO(), input)
-	if err != nil {
-		var errorType *types.ResourceNotFoundException
-		if errors.As(err, &errorType) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-func (k *KV) connect() error {
-	// Using the SDK's default configuration, loading additional config
-	// and credentials values from the environment variables, shared
-	// credentials, and shared configuration files
-	cfg, err := awsConfig.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return fmt.Errorf("unable to load SDK config, %w", err)
-	}
-
-	// Using the Config value, create the DynamoDB client
-	k.svc = dynamodb.NewFromConfig(cfg)
-	return nil
 }
 
 // Put value in to kv store by key.
@@ -161,7 +67,7 @@ func (k *KV) Put(key string, value interface{}) error {
 		Item:      av,
 	}
 
-	_, err = k.svc.PutItem(context.TODO(), input)
+	_, err = k.dynamo.client.PutItem(context.TODO(), input)
 	return err
 }
 
@@ -175,7 +81,7 @@ func (k *KV) Get(key string, value interface{}) error {
 		},
 		TableName: aws.String(k.tableName),
 	}
-	result, err := k.svc.GetItem(context.TODO(), input)
+	result, err := k.dynamo.client.GetItem(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -323,7 +229,7 @@ func (i *FindIterator) Next(items interface{}) error {
 		return nil
 	}
 	i.queryInput.ExclusiveStartKey = i.queryOutput.LastEvaluatedKey
-	out, err := i.k.svc.Query(context.TODO(), i.queryInput)
+	out, err := i.k.dynamo.client.Query(context.TODO(), i.queryInput)
 	if err != nil {
 		return err
 	}
@@ -343,7 +249,7 @@ func (k *KV) find(items interface{}, limit int, keyCondition string, expressionA
 	if limit > 0 {
 		input.Limit = aws.Int32(int32(limit))
 	}
-	out, err := k.svc.Query(context.TODO(), input)
+	out, err := k.dynamo.client.Query(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +281,7 @@ func (k *KV) DeleteAll() error {
 
 	for {
 		// query for existing keys in the partition
-		out, err := k.svc.Query(context.TODO(), &dynamodb.QueryInput{
+		out, err := k.dynamo.client.Query(context.TODO(), &dynamodb.QueryInput{
 			TableName:                 aws.String(k.tableName),
 			KeyConditionExpression:    aws.String(keyCondition),
 			ExpressionAttributeValues: expressionAttributes,
@@ -415,7 +321,7 @@ func (k *KV) deleteOne(key string) error {
 		},
 		TableName: aws.String(k.tableName),
 	}
-	_, err := k.svc.DeleteItem(context.TODO(), input)
+	_, err := k.dynamo.client.DeleteItem(context.TODO(), input)
 	return err
 }
 
@@ -437,7 +343,7 @@ func (k *KV) deleteMany(key ...string) error {
 			wrs = append(wrs, wr)
 		}
 		input.RequestItems[k.tableName] = wrs
-		_, err := k.svc.BatchWriteItem(context.TODO(), input)
+		_, err := k.dynamo.client.BatchWriteItem(context.TODO(), input)
 		if err != nil {
 			return err
 		}
