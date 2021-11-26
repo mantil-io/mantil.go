@@ -22,6 +22,13 @@ type cfg struct {
 }
 
 func (c *cfg) load() error {
+	if c.isUnitTestEnv() {
+		c.NamingTemplate = "mantil-go-" + c.username() + "-unit-%s"
+		c.ResourceTags = map[string]string{
+			"unit-test-tag": "value",
+		}
+		return nil
+	}
 	encoded, err := ensureEnv(EnvConfig, "mantil.go config not found")
 	if err != nil {
 		return err
