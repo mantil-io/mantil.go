@@ -35,8 +35,8 @@ func (s *s3) init() error {
 	return nil
 }
 
-// S3Bucket creates a new S3 bucket (if it doesn't already exist) for use within a mantil project.
-// The final name of the bucket follows the same naming convention as other mantil resources and can
+// S3Bucket creates a new S3 bucket (if it doesn't already exist) for use within a Mantil project.
+// The final name of the bucket follows the same naming convention as other Mantil resources and can
 // be found by calling the Resource function.
 //
 // The bucket will be deleted when the project stage is destroyed.

@@ -37,8 +37,8 @@ func (d *dynamo) init() error {
 	return nil
 }
 
-// DynamodbTable creates a new dynamodb table (if it doesn't already exist) for use within a mantil project.
-// The final name of the table follows the same naming convention as other mantil resources and can
+// DynamodbTable creates a new dynamodb table (if it doesn't already exist) for use within a Mantil project.
+// The final name of the table follows the same naming convention as other Mantil resources and can
 // be found by calling the Resource function.
 //
 // The table will be deleted when the project stage is destroyed.
