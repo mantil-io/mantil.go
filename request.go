@@ -38,14 +38,15 @@ type Request struct {
 
 type requestAttributes struct {
 	// API gateway and WebSocket attributes
-	Path           string            `json:"path"`
-	HTTPMethod     string            `json:"httpMethod"`
-	PathParameters map[string]string `json:"pathParameters"`
-	RequestContext struct {
+	Path                  string            `json:"path"`
+	HTTPMethod            string            `json:"httpMethod"`
+	PathParameters        map[string]string `json:"pathParameters"`
+	QueryStringParameters map[string]string `json:"queryStringParameters"`
+	RequestContext        struct {
 		Authorizer   map[string]interface{} `json:"authorizer"`
-		ConnectionID string                 `json:"connectionId"` // postoji samo kod ws
+		ConnectionID string                 `json:"connectionId"` // only for websocket
 		EventType    string                 `json:"eventType"`    // ws: MESSAGE,
-		Protocol     string                 `json:"protocol"`     // HTTP... // postoji samo kod API
+		Protocol     string                 `json:"protocol"`     // HTTP... // only for API
 	} `json:"requestContext"`
 	Headers         map[string]string `json:"headers"`
 	Body            string            `json:"body"`
@@ -140,6 +141,10 @@ func (r *Request) method() string {
 }
 
 func (r *Request) body() []byte {
+	if len(r.attr.QueryStringParameters) > 0 {
+		q, _ := json.Marshal(r.attr.QueryStringParameters)
+		return q
+	}
 	if len(r.attr.Body) > 0 {
 		var b = []byte(r.attr.Body)
 		if r.attr.IsBase64Encoded {
