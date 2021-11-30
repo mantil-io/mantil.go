@@ -10,6 +10,7 @@ import (
 )
 
 func TestS3BucketCreation(t *testing.T) {
+	setUnitTestConfig(t)
 	name := "my-bucket"
 	c, err := S3Bucket(name)
 	require.Nil(t, err)

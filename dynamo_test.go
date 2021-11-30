@@ -15,6 +15,7 @@ const (
 )
 
 func TestDynamodbTableCreation(t *testing.T) {
+	setUnitTestConfig(t)
 	name := "my-table"
 	c, err := DynamodbTable(name, pk, sk)
 	require.Nil(t, err)

@@ -1,6 +1,8 @@
 package mantil
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -15,13 +17,13 @@ func TestMain(m *testing.M) {
 
 func TestConfig(t *testing.T) {
 	SetLogger(nil)
-	t.Setenv(EnvConfig, "eyJSZXNvdXJjZVRhZ3MiOnsiTUFOVElMX0tFWSI6ImFhN3Z6eWkiLCJNQU5USUxfUFJPSkVDVCI6InNpZ251cCIsIk1BTlRJTF9TVEFHRSI6InByb2R1Y3Rpb24iLCJNQU5USUxfV09SS1NQQUNFIjoiaWFuaWMifSwiV3NGb3J3YXJkZXJOYW1lIjoic2lnbnVwLXByb2R1Y3Rpb24td3MtZm9yd2FyZGVyLWFhN3Z6eWkifQ==")
+	setUnitTestConfig(t)
 
 	var c cfg
 	err := c.load()
 	require.NoError(t, err)
-	require.Equal(t, c.ResourceTags["MANTIL_KEY"], "aa7vzyi")
-	require.Equal(t, c.WsForwarderName, "signup-production-ws-forwarder-aa7vzyi")
+	require.Equal(t, c.ResourceTags["key"], "value")
+	require.Equal(t, c.WsForwarderName, "ws-forwarder")
 
 	//buf, _ := json.Marshal(c)
 	//fmt.Printf("%s", buf)
@@ -51,4 +53,17 @@ func TestKvTableName(t *testing.T) {
 	require.Equal(t, expected, "project-stage-kv-abcdef")
 
 	os.Args[0] = args0
+}
+
+func setUnitTestConfig(t *testing.T) {
+	c := &cfg{
+		ResourceTags: map[string]string{
+			"key": "value",
+		},
+		WsForwarderName: "ws-forwarder",
+	}
+	c.NamingTemplate = "mantil-go-" + c.username() + "-unit-%s"
+	buf, _ := json.Marshal(c)
+	e := base64.StdEncoding.EncodeToString(buf)
+	t.Setenv(EnvConfig, e)
 }
