@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/mantil-io/mantil.go/er"
 	"github.com/mantil-io/mantil.go/proto"
 	"github.com/stretchr/testify/require"
 )
@@ -349,4 +351,14 @@ func TestCallMethodWithArrayResponse(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestStatusCodeInResponse(t *testing.T) {
+	r := response{
+		err: er.NewBadRequestError("missing"),
+	}
+
+	require.Equal(t, http.StatusBadRequest, r.StatusCode())
+	require.Equal(t, http.StatusBadRequest, r.ErrorCode())
+	require.Equal(t, "missing", r.Error())
 }

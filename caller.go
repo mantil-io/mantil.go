@@ -7,11 +7,17 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/mantil-io/mantil.go/proto"
 	"github.com/mitchellh/mapstructure"
+)
+
+const (
+	ApiErrorHeader     = "x-api-error"
+	ApiErrorCodeHeader = "x-api-error-code"
 )
 
 func newCaller(i interface{}) *caller {
@@ -33,15 +39,34 @@ type response struct {
 	statusCode int
 }
 
-func (c *response) StatusCode() int {
-	if c.statusCode != 0 {
-		return c.statusCode
+type iStatusCode interface {
+	StatusCode() int
+}
 
-	}
+type iErrorCode interface {
+	ErrorCode() int
+}
+
+func (c *response) StatusCode() int {
 	if c.err != nil {
+		if isc, ok := c.err.(iStatusCode); ok {
+			return isc.StatusCode()
+		}
 		return http.StatusInternalServerError
 	}
+	if c.statusCode != 0 {
+		return c.statusCode
+	}
 	return http.StatusOK
+}
+
+func (c *response) ErrorCode() int {
+	if c.err != nil {
+		if iec, ok := c.err.(iErrorCode); ok {
+			return iec.ErrorCode()
+		}
+	}
+	return 0
 }
 
 func (c *response) Error() string {
@@ -79,7 +104,10 @@ func (c *response) AsAPIGateway() ([]byte, error) {
 	hdrs := make(map[string]string)
 	hdrs["Access-Control-Allow-Origin"] = "*"
 	if e := c.Error(); e != "" {
-		hdrs["x-api-error"] = e
+		hdrs[ApiErrorHeader] = e
+	}
+	if ec := c.ErrorCode(); ec != 0 {
+		hdrs[ApiErrorCodeHeader] = strconv.Itoa(ec)
 	}
 	// try to set right content types
 	if len(body) > 1 && (strings.HasPrefix(body, "{") || strings.HasPrefix(body, "[")) {
