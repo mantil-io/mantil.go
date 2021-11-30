@@ -129,7 +129,7 @@ func (h *lambdaHandler) formatResponse(req Request, rsp response) ([]byte, error
 
 func (h *lambdaHandler) initContext(ctx context.Context, req *Request) context.Context {
 	h.requestNo++
-	log.SetFlags(0)
+	log.SetFlags(log.Llongfile) // no need for timestamp, that will add cloudwatch
 	cv := RequestContext{
 		RequestNo: h.requestNo,
 		Request:   *req,
