@@ -100,7 +100,7 @@ func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, re
 		info("failed to start nats lambda response: %v", err)
 	}
 
-	rsp := h.caller.call(reqCtx, req.Body, req.Methods...)
+	rsp := h.caller.call(reqCtx, req.Body, req.Params, req.Methods...)
 	if err := rsp.Err(); err != nil {
 		info("invoke of method %v failed with error: %v", req.Methods, err)
 	}

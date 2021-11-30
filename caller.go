@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/mantil-io/mantil.go/proto"
+	"github.com/mitchellh/mapstructure"
 )
 
 func newCaller(i interface{}) *caller {
@@ -135,13 +136,13 @@ func errResponse(err error, statusCode int) response {
 }
 
 // Inspiration: https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go
-func (c *caller) call(ctx context.Context, reqPayload []byte, methodNames ...string) response {
+func (c *caller) call(ctx context.Context, reqPayload []byte, reqParams map[string]string, methodNames ...string) response {
 	for _, methodName := range methodNames {
 		methodName = strings.Replace(strings.ToLower(methodName), "-", "", -1)
 		if methodName == "" {
 			for _, name := range []string{"Invoke", "Root", "Default"} {
 				if method, ok := c.typ.MethodByName(name); ok {
-					return c.callMethod(method, ctx, reqPayload)
+					return c.callMethod(method, ctx, reqPayload, reqParams)
 				}
 			}
 			return errResponse(
@@ -155,7 +156,7 @@ func (c *caller) call(ctx context.Context, reqPayload []byte, methodNames ...str
 			if methodName != strings.ToLower(method.Name) {
 				continue
 			}
-			return c.callMethod(method, ctx, reqPayload)
+			return c.callMethod(method, ctx, reqPayload, reqParams)
 		}
 	}
 	return errResponse(
@@ -164,8 +165,8 @@ func (c *caller) call(ctx context.Context, reqPayload []byte, methodNames ...str
 	)
 }
 
-func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPayload []byte) response {
-	args, cr := c.args(method, ctx, reqPayload)
+func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPayload []byte, reqParams map[string]string) response {
+	args, cr := c.args(method, ctx, reqPayload, reqParams)
 	if cr != nil {
 		return *cr
 	}
@@ -195,7 +196,7 @@ func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (rpsAr
 	return
 }
 
-func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []byte) ([]reflect.Value, *response) {
+func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []byte, reqParams map[string]string) ([]reflect.Value, *response) {
 	numIn := method.Type.NumIn()
 	methodTakesContext := false
 	if numIn > 1 {
@@ -215,26 +216,40 @@ func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []b
 		// unmarshal reqPayload into type
 		eventType := method.Type.In(numIn - 1)
 		event := reflect.New(eventType)
-		//fmt.Printf("kind %s\n", eventType.Kind())
+
+		// query params from GET request
+		if len(reqParams) > 0 {
+			if err := mapstructure.WeakDecode(reqParams, event.Interface()); err != nil {
+				cr := errResponse(
+					fmt.Errorf("unable to unmarshal request into %s, error: %w", eventType.Name(), err),
+					http.StatusBadRequest)
+				return nil, &cr
+			}
+			args = append(args, event.Elem())
+			return args, nil
+		}
+
+		// process payload
 		if len(reqPayload) == 0 && eventType.Kind() == reflect.Ptr {
 			args = append(args, event.Elem())
-		} else {
-			switch eventType.Kind() {
-			case reflect.String:
-				args = append(args, reflect.ValueOf(string(reqPayload)))
-			default:
-				if len(reqPayload) == 0 {
-					reqPayload = []byte(`{}`)
-				}
-				if err := json.Unmarshal(reqPayload, event.Interface()); err != nil {
-					cr := errResponse(
-						fmt.Errorf("unable to unmarshal request into %s, error: %w", eventType.Name(), err),
-						http.StatusBadRequest,
-					)
-					return nil, &cr
-				}
-				args = append(args, event.Elem())
+			return args, nil
+		}
+
+		switch eventType.Kind() {
+		case reflect.String:
+			args = append(args, reflect.ValueOf(string(reqPayload)))
+		default:
+			if len(reqPayload) == 0 {
+				reqPayload = []byte(`{}`)
 			}
+			if err := json.Unmarshal(reqPayload, event.Interface()); err != nil {
+				cr := errResponse(
+					fmt.Errorf("unable to unmarshal request into %s, error: %w", eventType.Name(), err),
+					http.StatusBadRequest,
+				)
+				return nil, &cr
+			}
+			args = append(args, event.Elem())
 		}
 	}
 	return args, nil

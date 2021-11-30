@@ -30,6 +30,7 @@ const (
 type Request struct {
 	Type    RequestType
 	Methods []string
+	Params  map[string]string
 	Body    []byte
 	Raw     []byte
 	Headers map[string]string
@@ -79,6 +80,7 @@ func parseRequest(raw []byte) (req Request) {
 	req.Body = req.body()
 	req.Methods = req.methods()
 	req.Headers = req.attr.Headers
+	req.Params = req.attr.QueryStringParameters
 	return
 }
 
@@ -141,10 +143,6 @@ func (r *Request) method() string {
 }
 
 func (r *Request) body() []byte {
-	if len(r.attr.QueryStringParameters) > 0 {
-		q, _ := json.Marshal(r.attr.QueryStringParameters)
-		return q
-	}
 	if len(r.attr.Body) > 0 {
 		var b = []byte(r.attr.Body)
 		if r.attr.IsBase64Encoded {

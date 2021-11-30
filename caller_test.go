@@ -76,81 +76,115 @@ func TestCaller(t *testing.T) {
 	SetLogger(nil) // remove log lines from test output
 	cases := []struct {
 		method     string
-		req        string
+		params     string
+		body       string
 		rsp        string
 		statusCode int
 		error      string
 	}{
 		{
 			method:     "ValueInRequest",
-			req:        "",
+			params:     `{}`,
+			body:       "",
 			rsp:        `{"Response":"Hello, "}`,
 			statusCode: 200,
 		},
 		{
 			method:     "ValueInReqAndRsp",
-			req:        "",
+			params:     `{}`,
+			body:       "",
 			rsp:        `{"Response":"Hello, "}`,
 			statusCode: 200,
 		},
 		{
 			method:     "world",
-			req:        "",
+			params:     `{}`,
+			body:       "",
 			rsp:        "",
 			statusCode: 204,
 		},
 		{
-			method:     "ValueInRequest",
-			req:        `{"name": "Pero"}`,
+			method:     "ValueInReqAndRsp",
+			params:     `{}`,
+			body:       `{"name": "Pero"}`,
 			rsp:        `{"Response":"Hello, Pero"}`,
 			statusCode: 200,
 		},
 		{
-			method:     "ValueInReqAndRsp",
-			req:        `{"name": "Pero"}`,
+			method:     "ValueInRequest",
+			params:     `{"name": "Pero"}`,
+			body:       "",
 			rsp:        `{"Response":"Hello, Pero"}`,
 			statusCode: 200,
 		},
 		{
 			method:     "world",
-			req:        `{"name": "Pero"}`,
+			params:     `{}`,
+			body:       `{"name": "Pero"}`,
+			rsp:        `{"Response":"Hello, Pero"}`,
+			statusCode: 200,
+		},
+		{
+			method:     "world",
+			params:     `{"name": "Pero"}`,
+			body:       "",
 			rsp:        `{"Response":"Hello, Pero"}`,
 			statusCode: 200,
 		},
 		{
 			method:     "noctx", // method without ctx as first parameter
-			req:        `{"name": "Pero"}`,
+			params:     `{}`,
+			body:       `{"name": "Pero"}`,
+			rsp:        `{"Response":"Hello, Pero"}`,
+			statusCode: 200,
+		},
+		{
+			method:     "noctx", // method without ctx as first parameter
+			params:     `{"name": "Pero"}`,
+			body:       "",
 			rsp:        `{"Response":"Hello, Pero"}`,
 			statusCode: 200,
 		},
 		{
 			method:     "no-Ctx", // case and '-' insensitive
-			req:        `{"name": "Pero"}`,
+			params:     `{}`,
+			body:       `{"name": "Pero"}`,
+			rsp:        `{"Response":"Hello, Pero"}`,
+			statusCode: 200,
+		},
+		{
+			method:     "no-Ctx", // case and '-' insensitive
+			params:     `{"name": "Pero"}`,
+			body:       "",
 			rsp:        `{"Response":"Hello, Pero"}`,
 			statusCode: 200,
 		},
 		{
 			method:     "", // call Root method
-			req:        "",
+			params:     `{}`,
+			body:       "",
 			rsp:        "",
 			statusCode: 204,
 		},
 		{
 			method:     "panic",
-			req:        "",
+			params:     `{}`,
+			body:       "",
 			rsp:        "",
 			statusCode: 500,
 			error:      "PANIC runtime error: invalid memory address or nil pointer dereference",
 		},
 		{
 			method:     "arrayresponse",
-			req:        "",
+			params:     `{}`,
+			body:       "",
 			rsp:        "[{\"Response\":\"Hello, 0\"},{\"Response\":\"Hello, 1\"},{\"Response\":\"Hello, 2\"},{\"Response\":\"Hello, 3\"},{\"Response\":\"Hello, 4\"},{\"Response\":\"Hello, 5\"},{\"Response\":\"Hello, 6\"},{\"Response\":\"Hello, 7\"},{\"Response\":\"Hello, 8\"},{\"Response\":\"Hello, 9\"}]",
 			statusCode: 200,
 		},
 		{
 			method:     "ping",
-			req:        "",
+			params:     `{}`,
+			body:       "",
 			rsp:        "pong",
 			statusCode: 200,
 		},
@@ -162,12 +196,14 @@ func TestCaller(t *testing.T) {
 		for i, c := range cases {
 			ctx := context.Background()
 			var reqPayload []byte
-			if len(c.req) > 0 {
-				reqPayload = []byte(c.req)
+			if len(c.body) > 0 {
+				reqPayload = []byte(c.body)
 			}
+			reqParams := make(map[string]string)
+			json.Unmarshal([]byte(c.params), &reqParams)
 			caller := newCaller(api)
 
-			rsp := caller.call(ctx, reqPayload, c.method)
+			rsp := caller.call(ctx, reqPayload, reqParams, c.method)
 			if c.error == "" {
 				require.NoError(t, rsp.err)
 			} else {
@@ -183,11 +219,15 @@ func TestCaller(t *testing.T) {
 		handler := newHandler(api)
 		for i, c := range cases {
 			ctx := context.Background()
+			params := make(map[string]string)
+			json.Unmarshal([]byte(c.params), &params)
+
 			aReq := events.APIGatewayProxyRequest{
-				Path:           "path",
-				HTTPMethod:     "method",
-				PathParameters: map[string]string{"proxy": c.method},
-				Body:           c.req,
+				Path:                  "path",
+				HTTPMethod:            "method",
+				PathParameters:        map[string]string{"proxy": c.method},
+				QueryStringParameters: params,
+				Body:                  c.body,
 			}
 			reqPayload, _ := json.Marshal(aReq)
 			_, rspp := handler.invoke(ctx, reqPayload)
@@ -206,12 +246,15 @@ func TestCaller(t *testing.T) {
 	t.Run("streaming message", func(t *testing.T) {
 		handler := newHandler(api)
 		for i, c := range cases {
+			if i == 4 || i == 6 || i == 8 || i == 10 {
+				continue
+			}
 			ctx := context.Background()
 			msg := proto.Message{
 				ConnectionID: "1234567890",
 				Inbox:        "my-inbox",
 				URI:          "api." + c.method,
-				Payload:      []byte(c.req),
+				Payload:      []byte(c.body),
 			}
 			reqPayload, _ := json.Marshal(msg)
 			req, rsp := handler.invoke(ctx, reqPayload)
@@ -232,16 +275,20 @@ func TestCaller(t *testing.T) {
 	t.Run("raw message", func(t *testing.T) {
 		handler := newHandler(api)
 		for i, c := range cases {
-			if i == 2 || i == 9 {
+			if i == 2 || i == 12 {
 				continue
 			}
+			params := make(map[string]string)
+			json.Unmarshal([]byte(c.params), &params)
 			ctx := context.Background()
 			msg := struct {
-				URI  string
-				Body string
+				URI                   string
+				Body                  string
+				QueryStringParameters map[string]string
 			}{
-				URI:  c.method,
-				Body: c.req,
+				URI:                   c.method,
+				Body:                  c.body,
+				QueryStringParameters: params,
 			}
 			reqPayload, _ := json.Marshal(msg)
 			_, rsp := handler.invoke(ctx, reqPayload)
@@ -250,7 +297,7 @@ func TestCaller(t *testing.T) {
 				require.NoError(t, err, "case %d", i)
 				require.Equal(t, c.rsp, string(rspPayload), "case %d", i)
 			} else {
-				require.Equal(t, err, c.error, "case %d", i)
+				require.Equal(t, c.error, err, "case %d", i)
 			}
 		}
 	})
