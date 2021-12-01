@@ -52,6 +52,9 @@ func (c *response) StatusCode() int {
 		if isc, ok := c.err.(iStatusCode); ok {
 			return isc.StatusCode()
 		}
+		if c.statusCode != 0 {
+			return c.statusCode
+		}
 		return http.StatusInternalServerError
 	}
 	if c.statusCode != 0 {
