@@ -48,11 +48,11 @@ func (i *invoke) response(rsp interface{}, err error) {
 	i.closeLogsLoop()
 	if err != nil {
 		if pe := i.pub.Error(err); pe != nil {
-			log.Printf("i.pub.Error error: %s", err)
+			log.Printf("i.pub.Error error: %s", pe)
 		}
 	} else {
 		if pe := i.publishResponse(rsp); pe != nil {
-			log.Printf("i.publishResponse error: %s", err)
+			log.Printf("i.publishResponse error: %s", pe)
 		}
 	}
 	i.pub.Close()

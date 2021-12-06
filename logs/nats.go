@@ -30,7 +30,7 @@ func (c *ConnectConfig) Unmarshal(buf string) error {
 	return json.Unmarshal([]byte(buf), c)
 }
 
-func (c *ConnectConfig) connect(userJWTorCredsFile string) (*nats.Conn, chan struct{}, error) {
+func (c *ConnectConfig) connect(name string, userJWTorCredsFile string) (*nats.Conn, chan struct{}, error) {
 	url := c.ServerURL
 	if url == "" {
 		url = defaultServerURL
@@ -66,12 +66,13 @@ func (c *ConnectConfig) connect(userJWTorCredsFile string) (*nats.Conn, chan str
 	options = append(options, nats.ClosedHandler(func(_ *nats.Conn) {
 		close(closed)
 	}))
+	options = append(options, nats.Name("mantil.go/logs "+name))
 	nc, err := nats.Connect(url, options...)
 	return nc, closed, err
 }
 
 func (c *ConnectConfig) Publisher() (*Publisher, error) {
-	nc, closed, err := c.connect(c.PublisherJWT)
+	nc, closed, err := c.connect("publisher", c.PublisherJWT)
 	if err != nil {
 		return nil, fmt.Errorf("connect error %w", err)
 	}
@@ -83,7 +84,7 @@ func (c *ConnectConfig) Publisher() (*Publisher, error) {
 }
 
 func (c *ConnectConfig) Listener() (*Listener, error) {
-	nc, _, err := c.connect(c.ListenerJWT)
+	nc, _, err := c.connect("listener", c.ListenerJWT)
 	if err != nil {
 		return nil, fmt.Errorf("connect error %w", err)
 	}
