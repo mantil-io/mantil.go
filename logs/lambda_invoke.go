@@ -232,10 +232,18 @@ func (l *LambdaListener) Headers() map[string]string {
 	return headers
 }
 
-func (l *LambdaListener) Done() error {
+func (l *LambdaListener) Done(ctx context.Context) error {
 	defer l.listener.Close()
-	<-l.logsDone
-	return <-l.responseDone
+	rsp := func() chan error {
+		<-l.logsDone
+		return l.responseDone
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-rsp():
+		return err
+	}
 }
 
 func unmarshal(buf []byte, rsp interface{}) error {

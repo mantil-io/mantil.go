@@ -2,6 +2,7 @@ package logs
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -61,7 +62,7 @@ func TestLambdaInvoke(t *testing.T) {
 			require.NoError(t, err)
 			cb("pero", nil)
 		}()
-		require.NoError(t, ll.Done())
+		require.NoError(t, ll.Done(context.Background()))
 
 		srsp := rsp.String()
 		require.Equal(t, "pero", srsp)
@@ -77,7 +78,7 @@ func TestLambdaInvoke(t *testing.T) {
 			require.NoError(t, err)
 			cb(nil, nil)
 		}()
-		require.NoError(t, ll.Done())
+		require.NoError(t, ll.Done(context.Background()))
 		require.Len(t, rsp.Bytes(), 0)
 	})
 
@@ -89,7 +90,7 @@ func TestLambdaInvoke(t *testing.T) {
 			require.NoError(t, err)
 			cb("something", nil)
 		}()
-		require.NoError(t, ll.Done())
+		require.NoError(t, ll.Done(context.Background()))
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -101,7 +102,7 @@ func TestLambdaInvoke(t *testing.T) {
 			cb(nil, fmt.Errorf("bum"))
 		}()
 
-		err := ll.Done()
+		err := ll.Done(context.Background())
 		require.Error(t, err)
 		t.Logf("error response: %s", err)
 		re := &ErrRemoteError{}
@@ -138,7 +139,7 @@ func TestLambdaInvoke(t *testing.T) {
 			cb(expectedRsp, nil)
 		}()
 
-		require.NoError(t, ll.Done())
+		require.NoError(t, ll.Done(context.Background()))
 		require.Equal(t, logs, expectedLogs)
 		require.Equal(t, rsp.String(), expectedRsp)
 		t.Logf("logs: %#v", logs)
