@@ -117,7 +117,6 @@ func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 func (l *LambdaInvoker) CallAsync(payload []byte) error {
 	input := &lambda.InvokeInput{
 		FunctionName:   &l.function,
-		LogType:        types.LogTypeTail,
 		Payload:        payload,
 		InvocationType: types.InvocationTypeEvent,
 	}
