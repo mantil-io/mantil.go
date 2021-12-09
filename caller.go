@@ -158,7 +158,7 @@ func okResponse(payload []byte, val interface{}) response {
 
 func errResponse(err error, statusCode int) response {
 	if statusCode == 0 {
-		statusCode = http.StatusServiceUnavailable
+		statusCode = http.StatusInternalServerError
 	}
 	return response{
 		statusCode: statusCode,
@@ -320,7 +320,7 @@ func (c *caller) parseRspArgs(args []reflect.Value) response {
 		// marshal val
 		rspPayload, err = json.Marshal(val)
 		if err != nil {
-			return errResponse(fmt.Errorf("unable to marshal response, error %w", err), http.StatusServiceUnavailable)
+			return errResponse(fmt.Errorf("unable to marshal response, error %w", err), http.StatusInternalServerError)
 		}
 		if len(rspPayload) == 4 && string(rspPayload) == "null" {
 			return okEmptyResponse()

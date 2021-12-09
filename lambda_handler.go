@@ -16,6 +16,7 @@ package mantil
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
@@ -98,6 +99,7 @@ func (h *lambdaHandler) invoke(ctx context.Context, payload []byte) (Request, re
 	cb, err := logs.LambdaResponse(req.Headers)
 	if err != nil {
 		info("failed to start nats lambda response: %v", err)
+		return req, errResponse(err, http.StatusInternalServerError)
 	}
 
 	rsp := h.caller.call(reqCtx, req.Body, req.Params, req.Methods...)
