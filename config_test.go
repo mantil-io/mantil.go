@@ -12,12 +12,12 @@ import (
 
 func TestMain(m *testing.M) {
 	logPanic = false
+	setUnitTestConfig(nil)
 	os.Exit(m.Run())
 }
 
 func TestConfig(t *testing.T) {
 	SetLogger(nil)
-	setUnitTestConfig(t)
 
 	var c cfg
 	err := c.load()
@@ -65,5 +65,9 @@ func setUnitTestConfig(t *testing.T) {
 	c.NamingTemplate = "mantil-go-" + c.username() + "-unit-%s"
 	buf, _ := json.Marshal(c)
 	e := base64.StdEncoding.EncodeToString(buf)
-	t.Setenv(EnvConfig, e)
+	if t == nil {
+		os.Setenv(EnvConfig, e)
+	} else {
+		t.Setenv(EnvConfig, e)
+	}
 }
