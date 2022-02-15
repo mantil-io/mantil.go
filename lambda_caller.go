@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -20,9 +21,10 @@ import (
 )
 
 type LambdaInvoker struct {
-	function string
-	role     string
-	client   *lambda.Client
+	function       string
+	role           string
+	client         *lambda.Client
+	functionConfig *lambda.GetFunctionConfigurationOutput
 }
 
 // NewLambdaInvoker builds helper for invoking lambda functions.
@@ -64,7 +66,7 @@ func (l *LambdaInvoker) setup() error {
 		Region:      l.region(cfg),
 		Credentials: cred,
 	})
-	return nil
+	return l.getConfig()
 }
 
 func (l *LambdaInvoker) region(cfg aws.Config) string {
@@ -113,8 +115,12 @@ func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	return output.Payload, nil
 }
 
-// CallAsync makes async Lambda invoke
 func (l *LambdaInvoker) CallAsync(payload []byte) error {
+	return l.Cast(payload)
+}
+
+// Cast makes async Lambda invoke
+func (l *LambdaInvoker) Cast(payload []byte) error {
 	input := &lambda.InvokeInput{
 		FunctionName:   &l.function,
 		Payload:        payload,
@@ -161,4 +167,23 @@ func instanceMetadata() (*imds.GetInstanceIdentityDocumentOutput, *aws.Config, e
 		return nil, nil, err
 	}
 	return iid, &cfg, nil
+}
+
+func (l *LambdaInvoker) getConfig() error {
+	input := &lambda.GetFunctionConfigurationInput{
+		FunctionName: &l.function,
+	}
+	output, err := l.client.GetFunctionConfiguration(context.Background(), input)
+	if err != nil {
+		return err
+	}
+	l.functionConfig = output
+	return nil
+}
+
+func (l *LambdaInvoker) Timeout() time.Duration {
+	if l.functionConfig == nil || l.functionConfig.Timeout == nil {
+		return 0
+	}
+	return time.Duration(*l.functionConfig.Timeout) * time.Second
 }
