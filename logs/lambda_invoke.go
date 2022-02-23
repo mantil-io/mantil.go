@@ -168,6 +168,7 @@ type ListenerConfig struct {
 	ServerURL    string
 	PublisherJWT string
 	ListenerJWT  string
+	Subject      string
 	LogSink      func(chan []byte)
 	Rsp          interface{}
 }
@@ -185,9 +186,12 @@ func NewLambdaListener(c ListenerConfig) (*LambdaListener, error) {
 
 	l := LambdaListener{
 		config:       c,
-		subject:      nats.NewInbox(),
+		subject:      c.Subject,
 		logsDone:     make(chan struct{}),
 		responseDone: make(chan error, 1),
+	}
+	if l.subject == "" {
+		l.subject = nats.NewInbox()
 	}
 	listenerConfig := ConnectConfig{
 		ServerURL:   c.ServerURL,
