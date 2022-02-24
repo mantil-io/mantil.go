@@ -105,7 +105,6 @@ func (c *response) AsAPIGateway() ([]byte, error) {
 	gwRsp.Body = body
 
 	hdrs := make(map[string]string)
-	hdrs["Access-Control-Allow-Origin"] = "*"
 	if e := c.Error(); e != "" {
 		hdrs[ApiErrorHeader] = e
 	}
