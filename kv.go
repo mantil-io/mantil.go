@@ -86,7 +86,7 @@ func (k *KV) Get(key string, value interface{}) error {
 		return err
 	}
 	if result.Item == nil {
-		return ErrItemNotFound{key: key}
+		return &ErrItemNotFound{key: key}
 	}
 	return attributevalue.UnmarshalMap(result.Item, value)
 }
