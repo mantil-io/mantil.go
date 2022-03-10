@@ -34,20 +34,33 @@ type Request struct {
 	Body    []byte
 	Raw     []byte
 	Headers map[string]string
+	HTTP    httpData
 	attr    requestAttributes
+}
+
+type httpData struct {
+	Method   string
+	Path     string
+	Protocol string
 }
 
 type requestAttributes struct {
 	// API gateway and WebSocket attributes
-	Path                  string            `json:"path"`
-	HTTPMethod            string            `json:"httpMethod"`
+	Version               string            `json:"version"`
+	Path                  string            `json:"path"`       // payload format version 1.0
+	HTTPMethod            string            `json:"httpMethod"` // payload format version 1.0
 	PathParameters        map[string]string `json:"pathParameters"`
 	QueryStringParameters map[string]string `json:"queryStringParameters"`
 	RequestContext        struct {
 		Authorizer   map[string]interface{} `json:"authorizer"`
 		ConnectionID string                 `json:"connectionId"` // only for websocket
 		EventType    string                 `json:"eventType"`    // ws: MESSAGE,
-		Protocol     string                 `json:"protocol"`     // HTTP... // only for API
+		Protocol     string                 `json:"protocol"`     // HTTP... // only for API payload format version 1.0
+		HTTP         struct {
+			Method   string `json:"method"`
+			Path     string `json:"path"`
+			Protocol string `json:"protocol"`
+		} `json:"http"` // payload format version 2.0
 	} `json:"requestContext"`
 	Headers         map[string]string `json:"headers"`
 	Body            string            `json:"body"`
@@ -76,6 +89,7 @@ func parseRequest(raw []byte) (req Request) {
 		}
 		return
 	}
+	req.parseHTTP()
 	req.detectType()
 	req.Body = req.body()
 	req.Methods = req.methods()
@@ -84,9 +98,21 @@ func parseRequest(raw []byte) (req Request) {
 	return
 }
 
+func (r *Request) parseHTTP() {
+	if r.attr.Version == "2.0" {
+		r.HTTP.Path = r.attr.RequestContext.HTTP.Path
+		r.HTTP.Method = r.attr.RequestContext.HTTP.Method
+		r.HTTP.Protocol = r.attr.RequestContext.HTTP.Protocol
+		return
+	}
+	r.HTTP.Path = r.attr.Path
+	r.HTTP.Method = r.attr.HTTPMethod
+	r.HTTP.Protocol = r.attr.RequestContext.Protocol
+}
+
 func (r *Request) detectType() {
 	context := r.attr.RequestContext
-	if protocol := context.Protocol; protocol != "" && strings.HasPrefix(protocol, "HTTP") {
+	if protocol := r.HTTP.Protocol; protocol != "" && strings.HasPrefix(protocol, "HTTP") {
 		r.Type = APIGateway
 		return
 	}
@@ -105,7 +131,7 @@ func (r *Request) detectType() {
 			return
 		}
 	}
-	if r.attr.Path != "" && r.attr.HTTPMethod != "" {
+	if r.HTTP.Path != "" && r.HTTP.Method != "" {
 		r.Type = APIGateway
 		return
 	}
