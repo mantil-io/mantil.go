@@ -14,18 +14,25 @@ const (
 	defaultServerURL = "connect.ngs.global"
 )
 
+// ConnectConfig contains various configuration options for establishing a NATS connection
 type ConnectConfig struct {
-	ServerURL    string `json:"u,omitempty"`
+	// ServerURL is the URL of the NATS server endpoint
+	ServerURL string `json:"u,omitempty"`
+	// PublisherJWT contains the NATS listener credentials
 	PublisherJWT string `json:"p,omitempty"`
-	ListenerJWT  string `json:"l,omitempty"`
-	Subject      string `json:"s,omitempty"`
+	// ListenerJWT contains the NATS publisher credentials
+	ListenerJWT string `json:"l,omitempty"`
+	// Subject is the NATS subject
+	Subject string `json:"s,omitempty"`
 }
 
+// Marshal returns the JSON encoding of a ConnectConfig instance
 func (c *ConnectConfig) Marshal() string {
 	buf, _ := json.Marshal(c)
 	return string(buf)
 }
 
+// Unmarshal parses a JSON-encoded ConnectConfig instance
 func (c *ConnectConfig) Unmarshal(buf string) error {
 	return json.Unmarshal([]byte(buf), c)
 }
@@ -71,6 +78,7 @@ func (c *ConnectConfig) connect(name string, userJWTorCredsFile string) (*nats.C
 	return nc, closed, err
 }
 
+// Publisher creates a NATS publisher from a given config
 func (c *ConnectConfig) Publisher() (*Publisher, error) {
 	nc, closed, err := c.connect("publisher", c.PublisherJWT)
 	if err != nil {
@@ -83,6 +91,7 @@ func (c *ConnectConfig) Publisher() (*Publisher, error) {
 	}, nil
 }
 
+// Listener creates a NATS listener from the given config
 func (c *ConnectConfig) Listener() (*Listener, error) {
 	nc, _, err := c.connect("listener", c.ListenerJWT)
 	if err != nil {

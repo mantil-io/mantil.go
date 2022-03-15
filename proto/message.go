@@ -10,16 +10,28 @@ import (
 	"strings"
 )
 
+// MessageType represents the type of the procol message
 type MessageType string
 
 const (
-	Subscribe   MessageType = "SUB"
+	// Subscribe represents a subscription message type. Clients use these to indicate
+	// that they want to subscribe to a set of topics.
+	Subscribe MessageType = "SUB"
+	// Unsubscribe represents a unsubscribe message type. Clients use these to indicate
+	// that they want to unsubscribe from a set of topics.
 	Unsubscribe MessageType = "UNSUB"
-	Request     MessageType = "REQ"
-	Response    MessageType = "RSP"
-	Publish     MessageType = "PUB"
+	// Request represents a request message type. These are used for request/response
+	// type communication.
+	Request MessageType = "REQ"
+	// Response represents a response message type. These are used for request/response
+	// type communication.
+	Response MessageType = "RSP"
+	// Publish represents a publish message type. These are used server-side
+	// to publish a message to a given topic, sending it to all subscribers of that topic.
+	Publish MessageType = "PUB"
 )
 
+// Message represents a message for Mantil's lambda streaming protocol.
 type Message struct {
 	Type         MessageType `json:"type"`
 	ConnectionID string      `json:"connectionID"`
@@ -30,6 +42,7 @@ type Message struct {
 	Payload      []byte      `json:"payload"`
 }
 
+// MessageKeys is a list of all possible keys in a protocol message
 var MessageKeys = []string{
 	"type",
 	"connectionID",
@@ -40,6 +53,7 @@ var MessageKeys = []string{
 	"payload",
 }
 
+// Encode converts a Message struct to its protocol form
 func (m *Message) Encode() ([]byte, error) {
 	if err := m.validate(); err != nil {
 		return nil, err
@@ -126,6 +140,7 @@ func encode(mtype MessageType, payload []byte, attrs ...string) ([]byte, error) 
 	return []byte(sb.String()), nil
 }
 
+// ParseMessage parses a protocol message and returns a Message struct if successful
 func ParseMessage(buf []byte) (*Message, error) {
 	r := bufio.NewReader(bytes.NewBuffer(buf))
 	hdr, err := r.ReadString('\n')

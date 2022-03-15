@@ -2,6 +2,7 @@ package mantil
 
 import "fmt"
 
+// ResourceInfo contains information about resources created through Mantil
 type ResourceInfo struct {
 	// Full name of the AWS resource
 	Name string

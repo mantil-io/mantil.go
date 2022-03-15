@@ -20,10 +20,12 @@ import (
 
 var ErrInternalServer = NewInternalServerError("")
 
+// InternalServerError reporesents a general server error (500)
 type InternalServerError struct {
 	msg string
 }
 
+// NewInternalServerError creates a new ErrInternalServer with the given message
 func NewInternalServerError(msg string) *InternalServerError {
 	return &InternalServerError{msg: msg}
 }
@@ -35,18 +37,22 @@ func (e *InternalServerError) Error() string {
 	return e.msg
 }
 
+// StatusCode returns the error's status code
 func (e *InternalServerError) StatusCode() int {
 	return http.StatusInternalServerError
 }
 
+// ErrorCode returns the error's error code
 func (e *InternalServerError) ErrorCode() int {
 	return http.StatusInternalServerError
 }
 
+// BadRequestError reporesents an error for malformed requests
 type BadRequestError struct {
 	msg string
 }
 
+// NewBadRequestError creates a new BadRequestError with the given message
 func NewBadRequestError(msg string) *BadRequestError {
 	return &BadRequestError{msg: msg}
 }
@@ -58,20 +64,24 @@ func (e *BadRequestError) Error() string {
 	return e.msg
 }
 
+// StatusCode returns the error's status code
 func (e *BadRequestError) StatusCode() int {
 	return http.StatusBadRequest
 }
 
+// ErrorCode returns the error's error code
 func (e *BadRequestError) ErrorCode() int {
 	return http.StatusBadRequest
 }
 
+// ApplicationError represents a general application error
 type ApplicationError struct {
 	msg    string
 	status int
 	code   int
 }
 
+// NewApplicationError creates a new ApplicationError with the given message and status/error codes
 func NewApplicationError(msg string, errorCode int, httpStatusCode int) *ApplicationError {
 	return &ApplicationError{
 		msg:    msg,
@@ -84,6 +94,7 @@ func (e *ApplicationError) Error() string {
 	return e.msg
 }
 
+// StatusCode returns the error's status code
 func (e *ApplicationError) StatusCode() int {
 	if e.status == 0 {
 		return http.StatusInternalServerError
@@ -91,6 +102,7 @@ func (e *ApplicationError) StatusCode() int {
 	return e.status
 }
 
+// ErrorCode returns the error's error code
 func (e *ApplicationError) ErrorCode() int {
 	return e.code
 }

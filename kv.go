@@ -27,7 +27,7 @@ type KV struct {
 	dynamo    *dynamo
 }
 
-// Creates new KV store. All KV stores uses same DynamoDB table. Partition
+// NewKV Creates new KV store. All KV stores uses same DynamoDB table. Partition
 // splits that table into independent parts. Each partition has own set of keys.
 func NewKV(partition string) (*KV, error) {
 	tn, err := config().kvTableName()
@@ -91,15 +91,23 @@ func (k *KV) Get(key string, value interface{}) error {
 	return attributevalue.UnmarshalMap(result.Item, value)
 }
 
+// FindOperator is a type representing search criteria for Find operations
 type FindOperator int
 
 const (
+	// FindBeginsWith searches for items with keys beginning with a given prefix
 	FindBeginsWith FindOperator = iota
+	// FindGreaterThan searches for items with keys greater than the given key
 	FindGreaterThan
+	// FindLessThan searches for items with keys less than the given key
 	FindLessThan
+	// FindGreaterThanOrEqual searches for items with keys greater than or equal the given key
 	FindGreaterThanOrEqual
+	// FindLessThanOrEqual searches for items with keys less than or equal the given key
 	FindLessThanOrEqual
+	// FindBetween searches for items with keys between the given keys
 	FindBetween
+	// FindAll returns all items
 	FindAll
 )
 
@@ -200,6 +208,7 @@ func (k *KV) unmarshal(items interface{}, out *dynamodb.QueryOutput) error {
 	return attributevalue.UnmarshalListOfMaps(out.Items, items)
 }
 
+// FindIterator is used to iterate over a collection of items returned by the Find and FindAll methods
 type FindIterator struct {
 	k           *KV
 	queryInput  *dynamodb.QueryInput

@@ -25,6 +25,7 @@ const (
 // 	}, nil
 // }
 
+// Publisher represents a NATS publisher
 type Publisher struct {
 	subject string
 	nc      *nats.Conn
@@ -39,6 +40,8 @@ type Publisher struct {
 // 	return p.nc.Publish(p.subject, buf)
 // }
 
+// Close publishes an empty message to the subject, indicating
+// that the subject is closed
 func (p *Publisher) Close() error {
 	if err := p.nc.Publish(p.subject, nil); err != nil {
 		return err
@@ -50,6 +53,7 @@ func (p *Publisher) Close() error {
 	return nil
 }
 
+// Error publishes an error message to the subject
 func (p *Publisher) Error(err error) error {
 	m := nats.NewMsg(p.subject)
 	m.Header.Set(typeKey, errorValue)
@@ -57,6 +61,7 @@ func (p *Publisher) Error(err error) error {
 	return p.nc.PublishMsg(m)
 }
 
+// Log publishes a log message to the subject
 func (p *Publisher) Log(buf []byte) error {
 	m := nats.NewMsg(p.subject)
 	m.Header.Set(typeKey, logValue)
@@ -64,6 +69,7 @@ func (p *Publisher) Log(buf []byte) error {
 	return p.nc.PublishMsg(m)
 }
 
+// Data publishes a data message to the subject
 func (p *Publisher) Data(buf []byte) error {
 	m := nats.NewMsg(p.subject)
 	m.Data = buf
@@ -107,6 +113,7 @@ func (p *Publisher) Data(buf []byte) error {
 // 	return &ErrRemoteError{msg: msg}
 // }
 
+// ErrRemoteError represents a remote error
 type ErrRemoteError struct {
 	msg string
 }

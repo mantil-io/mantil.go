@@ -6,6 +6,8 @@ import (
 	"github.com/mantil-io/mantil.go/proto"
 )
 
+// Publish publishes a payload to a given subject. Clients can
+// subscribe using the JS SDK: https://github.com/mantil-io/mantil.js
 func Publish(subject string, payload interface{}) error {
 	p, err := json.Marshal(payload)
 	if err != nil {

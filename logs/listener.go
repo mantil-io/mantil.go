@@ -17,6 +17,7 @@ import (
 // 	}, nil
 // }
 
+// Listener represents a NATS listener
 type Listener struct {
 	nc *nats.Conn
 }
@@ -139,6 +140,7 @@ func (l *Listener) listen(ctx context.Context, subject string) (*listenerChans, 
 // 	return out, nil
 // }
 
+// Close closes the underlying NATS connection
 func (l *Listener) Close() error {
 	l.nc.Close()
 	return nil

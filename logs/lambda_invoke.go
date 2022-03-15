@@ -164,13 +164,20 @@ type LambdaListener struct {
 	responseDone chan error
 }
 
+// ListenerConfig contains various configuration options for LambdaListener
 type ListenerConfig struct {
-	ServerURL    string
+	// ServerURL is the URL of the NATS server endpoint
+	ServerURL string
+	// PublisherJWT contains the NATS publisher credentials
 	PublisherJWT string
-	ListenerJWT  string
-	Subject      string
-	LogSink      func(chan []byte)
-	Rsp          interface{}
+	// PublisherJWT contains the NATS listener credentials
+	ListenerJWT string
+	// Subject is the NATS subject to listen to
+	Subject string
+	// LogSink is a channel where logs are pushed
+	LogSink func(chan []byte)
+	// Rsp is the struct where response data will be written
+	Rsp interface{}
 }
 
 func noopLogSink(ch chan []byte) {
@@ -178,6 +185,7 @@ func noopLogSink(ch chan []byte) {
 	}
 }
 
+// NewLambdaListener creates a new LambdaListener with the given config
 func NewLambdaListener(c ListenerConfig) (*LambdaListener, error) {
 	rsp := c.Rsp
 	if c.LogSink == nil {
@@ -225,6 +233,7 @@ func NewLambdaListener(c ListenerConfig) (*LambdaListener, error) {
 	return &l, nil
 }
 
+// Headers marshals the NATS publisher config
 func (l *LambdaListener) Headers() map[string]string {
 	headers := make(map[string]string)
 	publisherConfig := ConnectConfig{
@@ -236,6 +245,7 @@ func (l *LambdaListener) Headers() map[string]string {
 	return headers
 }
 
+// Done blocks until either a response or error is available
 func (l *LambdaListener) Done(ctx context.Context) error {
 	defer l.listener.Close()
 	rsp := func() chan error {

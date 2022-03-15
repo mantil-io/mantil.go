@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	ApiErrorHeader     = "x-api-error"
+	// ApiErrorHeader is the response header key for lambda errors
+	ApiErrorHeader = "x-api-error"
+	// ApiErrorHeader is the response header key for lambda error codes
 	ApiErrorCodeHeader = "x-api-error-code"
 )
 

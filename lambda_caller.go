@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
+// LambdaInvoker represents a helper for invoking lambda
+// functions with cross-account support.
 type LambdaInvoker struct {
 	function       string
 	role           string
@@ -115,6 +117,7 @@ func (l *LambdaInvoker) Call(payload []byte) ([]byte, error) {
 	return output.Payload, nil
 }
 
+// CallAsync invokes the Lambda function asynchronously
 func (l *LambdaInvoker) CallAsync(payload []byte) error {
 	return l.Cast(payload)
 }
@@ -181,6 +184,7 @@ func (l *LambdaInvoker) getConfig() error {
 	return nil
 }
 
+// Timeout returns the lambda's timeout duration setting
 func (l *LambdaInvoker) Timeout() time.Duration {
 	if l.functionConfig == nil || l.functionConfig.Timeout == nil {
 		return 0
