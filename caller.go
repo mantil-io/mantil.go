@@ -18,7 +18,7 @@ import (
 const (
 	// ApiErrorHeader is the response header key for lambda errors
 	ApiErrorHeader = "x-api-error"
-	// ApiErrorHeader is the response header key for lambda error codes
+	// ApiErrorCodeHeader is the response header key for lambda error codes
 	ApiErrorCodeHeader = "x-api-error-code"
 )
 
@@ -174,7 +174,7 @@ func (c *caller) call(ctx context.Context, reqPayload []byte, reqParams map[stri
 		if methodName == "" {
 			for _, name := range []string{"Invoke", "Root", "Default"} {
 				if method, ok := c.typ.MethodByName(name); ok {
-					return c.callMethod(method, ctx, reqPayload, reqParams)
+					return c.callMethod(ctx, method, reqPayload, reqParams)
 				}
 			}
 			return errResponse(
@@ -188,7 +188,7 @@ func (c *caller) call(ctx context.Context, reqPayload []byte, reqParams map[stri
 			if methodName != strings.ToLower(method.Name) {
 				continue
 			}
-			return c.callMethod(method, ctx, reqPayload, reqParams)
+			return c.callMethod(ctx, method, reqPayload, reqParams)
 		}
 	}
 	return errResponse(
@@ -197,8 +197,8 @@ func (c *caller) call(ctx context.Context, reqPayload []byte, reqParams map[stri
 	)
 }
 
-func (c *caller) callMethod(method reflect.Method, ctx context.Context, reqPayload []byte, reqParams map[string]string) response {
-	args, cr := c.args(method, ctx, reqPayload, reqParams)
+func (c *caller) callMethod(ctx context.Context, method reflect.Method, reqPayload []byte, reqParams map[string]string) response {
+	args, cr := c.args(ctx, method, reqPayload, reqParams)
 	if cr != nil {
 		return *cr
 	}
@@ -228,7 +228,7 @@ func (c *caller) callWithRecover(fun reflect.Value, args []reflect.Value) (rpsAr
 	return
 }
 
-func (c *caller) args(method reflect.Method, ctx context.Context, reqPayload []byte, reqParams map[string]string) ([]reflect.Value, *response) {
+func (c *caller) args(ctx context.Context, method reflect.Method, reqPayload []byte, reqParams map[string]string) ([]reflect.Value, *response) {
 	numIn := method.Type.NumIn()
 	methodTakesContext := false
 	if numIn > 1 {

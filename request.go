@@ -8,6 +8,7 @@ import (
 	"github.com/mantil-io/mantil.go/proto"
 )
 
+// RequestType represents the type of the incoming Lambda request
 type RequestType int
 
 // RequestType enum possible values:

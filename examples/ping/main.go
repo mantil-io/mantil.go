@@ -27,10 +27,12 @@ func (p *ping) Ping() string {
 	return "ping"
 }
 
+// Request is the request type for the Req method
 type Request struct {
 	Name string
 }
 
+// Response is the response type for the Req method
 type Response struct {
 	Greeting string
 }

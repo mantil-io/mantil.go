@@ -21,7 +21,7 @@ type invoke struct {
 	logsLoopDone chan struct{}
 }
 
-// LmabdaResponse analyzes headers and redirects log to nats subject (if header defined).
+// LambdaResponse analyzes headers and redirects log to nats subject (if header defined).
 // Returns function to be called with lambda response.
 func LambdaResponse(headers map[string]string) (func(interface{}, error), error) {
 	configBuf := headers[configHeaderKey]
