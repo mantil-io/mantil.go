@@ -27,7 +27,7 @@ const (
 //  * AWS Console - detected at Type Unknown
 //  * SDK         - detected as Type Unknown
 //  * Websocket API Gateway methods
-// Request contains most usefull attributes regarding of calling method.
+// Request contains most useful attributes regarding of calling method.
 type Request struct {
 	Type    RequestType
 	Methods []string
@@ -199,7 +199,7 @@ func (r *Request) toStreamingResponse(rspPayload []byte) proto.Message {
 	}
 }
 
-// RemoteIP returns remote IP (client IP) for request recived through API Gateway
+// RemoteIP returns remote IP (client IP) for request received through API Gateway
 func (r *Request) RemoteIP() string {
 	if r.Headers == nil {
 		return ""

@@ -18,7 +18,7 @@ main difference is that mantil.go handler mantil.LmabdaHandler accepts struct
 instance and exposes each exported method of that struct. Where the default
 implementation has a single function as an entrypoint.
 
-Package is intented for usage inside Mantil project. 
+Package is intended for usage inside Mantil project. 
 
 Package also provides simple key value store interface backed by a DynamoDB table.
 It manages that table as part of the Mantil project. It is created on demand and

@@ -6,7 +6,7 @@
 // instance and exposes each exported method of that struct. Where the default
 // implementation has a single function as an entrypoint.
 //
-// Package is intented for usage inside Mantil project.
+// Package is intended for usage inside Mantil project.
 //
 // Package also provides simple key value store interface backed by a DynamoDB table.
 // It manages that table as part of the Mantil project. It is created on demand and
@@ -155,7 +155,7 @@ func (h *lambdaHandler) initContext(ctx context.Context, req *Request) context.C
 
 // RequestContext is provided as first context attribute to all api methods handled by mantil.go
 // You can get it by mantil.FromContext().
-// It is wrapper arround github.com/aws/aws-lambda-go/lambdacontext
+// It is wrapper around github.com/aws/aws-lambda-go/lambdacontext
 type RequestContext struct {
 	// Number of same worker Lambda function invocations
 	// 1 - cold start

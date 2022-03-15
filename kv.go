@@ -17,7 +17,7 @@ const (
 	SK = "SK"
 )
 
-// KV is key value store backed DynamoDB. When used it becames part of the
+// KV is key value store backed DynamoDB. When used it becomes part of the
 // Mantil project. DynamoDB table is created on demand, uses same naming
 // convention as all other Mantil project resources. And it is removed when
 // Mantil project stage is destroyed.
