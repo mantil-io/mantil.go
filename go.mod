@@ -15,8 +15,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.5.0
 	github.com/aws/smithy-go v1.9.0
 	github.com/mitchellh/mapstructure v1.4.2
-	github.com/nats-io/nats-server/v2 v2.7.2
-	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
+	github.com/nats-io/nats-server/v2 v2.7.4
+	github.com/nats-io/nats.go v1.13.1-0.20220308171302-2f2f6968e98d
 	github.com/nats-io/nkeys v0.3.0
 	github.com/stretchr/testify v1.7.0
 )
